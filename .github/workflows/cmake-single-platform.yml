@@ -34,6 +34,7 @@ jobs:
         export PATH=$PATH:/usr/local/cuda/bin
         export CUDA_HOME=$CUDA_HOME:/usr/local/cuda
         echo $PATH
+        cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build2
         
 
     - name: Build
