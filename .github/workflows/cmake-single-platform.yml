@@ -14,8 +14,8 @@ env:
   RING_SIZE_IN_LOG2: 17  # Example value, adjust as needed
   BATCH_SIZE: 1       # Example value, adjust as needed
   CUDA_HOME: /usr/local/cuda
-  PATH: ${{CUDA_HOME }}/bin:${{ PATH }}
-  LD_LIBRARY_PATH: ${{ CUDA_HOME }}/lib64:${{ LD_LIBRARY_PATH }}
+  PATH: ${CUDA_HOME}/bin:${PATH}
+  LD_LIBRARY_PATH: ${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
   
 
 jobs:
