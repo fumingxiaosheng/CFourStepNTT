@@ -76,6 +76,31 @@ __global__ void Transpose_Batch(Data* polynomial_in, Data* polynomial_out, const
     //TODO:上传git；分支维护 tag(版本号、自定义) wip: 未完成的commit ；由commit message、tag来寻找具体版本；CI（服务器，需要使用自己的服务器）
 }
 
+/*2024-9-6:
+dim3(row >> 5, col >> 5, batch_size), dim3(32, 4)
+*/
+__global__ void Transpose_Batch2(Data* polynomial_in, Data* polynomial_out, const int row,
+                                const int col, int n_power)
+{
+    int global_start = blockIdx.z << n_power;
+    
+
+    __shared__ Data sharedmemorys[32][33]; //TODO:32*32的形式更加合适(padding的计算) -> 考虑只padding1个
+
+#pragma unroll
+    for(int i=0;i<8;i++){
+        sharedmemorys[(i<<2)+threadIdx.y][threadIdx.x] = polynomial_in[global_start + blockIdx.x * col * 32 + blockIdx.y * 32 + ((i<<2)+threadIdx.y) * col + threadIdx.x ];
+    }
+    
+    __syncthreads();
+
+#pragma unroll
+    for(int i=0;i<8;i++){
+        polynomial_out[global_start + blockIdx.y * row * 32 + blockIdx.x * 32 + ((i<<2)+threadIdx.y) * row + threadIdx.x ] = sharedmemorys[threadIdx.x][(i<<2)+threadIdx.y];//padding1个是无存储体冲突的
+    }
+    
+}
+
 /*2024-8-7:
 输入:input为输入的BATCH个多项式
     row代表的是行数
@@ -85,7 +110,9 @@ __global__ void Transpose_Batch(Data* polynomial_in, Data* polynomial_out, const
 __host__ void GPU_Transpose(Data* input, Data* output, const int row, const int col,
                             const int n_power, const int batch_size)
 {
-    Transpose_Batch<<<dim3(col >> 4, row >> 4, batch_size), dim3(16, 16)>>>(input, output, row, col, n_power);
+    //Transpose_Batch<<<dim3(col >> 4, row >> 4, batch_size), dim3(16, 16)>>>(input, output, row, col, n_power);
+    printf("Transpose_Batch2\n");
+    Transpose_Batch2<<<dim3(row >> 5, col >> 5, batch_size), dim3(32, 4)>>>(input, output, row, col, n_power);
     THROW_IF_CUDA_ERROR(cudaGetLastError());
 }
 
