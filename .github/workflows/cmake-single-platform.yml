@@ -33,6 +33,7 @@ jobs:
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
         export PATH=$PATH:/usr/local/cuda/bin
         export CUDA_HOME=$CUDA_HOME:/usr/local/cuda
+        sudo su - hxw -c "whoami"
         whoami
         # export CUDAToolkit_ROOT=/usr/local/cuda/bin
         echo $PATH
