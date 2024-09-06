@@ -36,7 +36,7 @@ jobs:
         whoami
         # export CUDAToolkit_ROOT=/usr/local/cuda/bin
         echo $PATH
-        cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0  -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda/bin -B ${{github.workspace}}/GPU-NTT/build2
+        #cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0  -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda/bin -B ${{github.workspace}}/GPU-NTT/build2
         
 
     - name: Build
