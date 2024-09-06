@@ -22,6 +22,13 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
+    - name: set environment
+      run: |
+        echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+        echo "PATH=$CUDA_HOME/bin:$PATH" >> $GITHUB_ENV
+        echo "LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+        
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # cmake -B ${{github.workspace}}/GPU-NTT/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -D MODULAR_REDUCTION_TYPE=0
