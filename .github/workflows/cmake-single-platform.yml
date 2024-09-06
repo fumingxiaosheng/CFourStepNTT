@@ -24,8 +24,11 @@ jobs:
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # cmake -B ${{github.workspace}}/GPU-NTT/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -D MODULAR_REDUCTION_TYPE=0
       run: |
-        cmake -B ${{github.workspace}}/GPU-NTT/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -D MODULAR_REDUCTION_TYPE=0
+        
+        cd GPU-NTT
+        cmake . -D MODULAR_REDUCTION_TYPE=0 -B./build
 
     - name: Build
       # Build your program with the given configuration
