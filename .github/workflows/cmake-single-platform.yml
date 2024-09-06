@@ -28,7 +28,7 @@ jobs:
       run: |
         
         cd GPU-NTT
-        cmake . -D MODULAR_REDUCTION_TYPE=0 -B./build
+        cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build
 
     - name: Build
       # Build your program with the given configuration
