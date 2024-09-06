@@ -13,6 +13,7 @@ env:
   BUILD_TYPE: Release
   RING_SIZE_IN_LOG2: 17  # Example value, adjust as needed
   BATCH_SIZE: 1       # Example value, adjust as needed
+  CUDAToolkit_ROOT: /usr/local/cuda
   
   
 
