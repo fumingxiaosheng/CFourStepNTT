@@ -28,14 +28,14 @@ jobs:
       run: |
         
         cd GPU-NTT
-        cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build
+        cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build2
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/GPU-NTT/build --parallel
+      run: cmake --build ${{github.workspace}}/GPU-NTT/build2 --parallel
 
     - name: Run Tests
-      working-directory: ${{github.workspace}}/GPU-NTT/build/bin
+      working-directory: ${{github.workspace}}/GPU-NTT/build2/bin
       run: |
         ./gpu_4step_ntt_examples ${{env.RING_SIZE_IN_LOG2}} ${{env.BATCH_SIZE}}
   
