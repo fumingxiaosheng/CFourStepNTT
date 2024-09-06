@@ -1,0 +1,2 @@
+/usr/bin/ar qc libntt.a CMakeFiles/ntt.dir/ntt_cpu.cu.o CMakeFiles/ntt.dir/ntt.cu.o
+/usr/bin/ranlib libntt.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcommon.a CMakeFiles/common.dir/common.cu.o CMakeFiles/common.dir/nttparameters.cu.o
+/usr/bin/ranlib libcommon.a

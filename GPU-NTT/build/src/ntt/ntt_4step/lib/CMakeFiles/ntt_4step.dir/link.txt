@@ -1,0 +1,2 @@
+/usr/bin/ar qc libntt_4step.a CMakeFiles/ntt_4step.dir/ntt_4step_cpu.cu.o CMakeFiles/ntt_4step.dir/ntt_4step.cu.o
+/usr/bin/ranlib libntt_4step.a
