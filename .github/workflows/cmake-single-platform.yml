@@ -29,8 +29,9 @@ jobs:
       # cmake -B ${{github.workspace}}/GPU-NTT/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -D MODULAR_REDUCTION_TYPE=0
       # cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build2
       run: |
-        echo $PATH
-        echo $CUDAToolkit_ROOT
+        # echo $PATH
+        # echo $CUDAToolkit_ROOT
+        cat /etc/passwd
         cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0  -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda/bin -B ${{github.workspace}}/GPU-NTT/build2
         
 
