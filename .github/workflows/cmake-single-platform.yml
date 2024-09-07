@@ -29,15 +29,6 @@ jobs:
       # cmake -B ${{github.workspace}}/GPU-NTT/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -D MODULAR_REDUCTION_TYPE=0
       # cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0 -B ${{github.workspace}}/GPU-NTT/build2
       run: |
-      
-        # export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64
-        # export PATH=$PATH:/usr/local/cuda/bin
-        # export CUDA_HOME=$CUDA_HOME:/usr/local/cuda
-        # sudo su - hxw -c "whoami"
-        # whoami
-        # export CUDAToolkit_ROOT=/usr/local/cuda/bin
-        # echo $PATH
-        source /etc/profile
         echo $PATH
         cmake ${{github.workspace}}/GPU-NTT/ -D MODULAR_REDUCTION_TYPE=0  -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda/bin -B ${{github.workspace}}/GPU-NTT/build2
         
