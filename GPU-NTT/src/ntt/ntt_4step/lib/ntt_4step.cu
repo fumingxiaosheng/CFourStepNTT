@@ -3101,6 +3101,45 @@ __global__ void FourStepPartialInverseCore2(Data* polynomial_in, Root* n2_root_o
     polynomial_in[load_store_address + loc2 + divindex] = temp2;
 }
 
+/*
+2024-9-7:
+1024维度的优化NTT实现
+
+Data* polynomial_in, Root* n2_root_of_unity_table,
+                                            Modulus modulus, int small_npower, int T, int loc1,
+                                            int loc2, int loc3, int loop, Ninverse inverse,
+                                            int poly_n_power
+*/
+/*__global__ void FourStepForward1024(Data * polynomial_out,Data * polynomial_in,const Root* n2_root_of_unity_table,const Root* n1_root_of_unity_table,const Root* W_root_of_unity_table){
+    constexpr size_t n1 = 32;
+    constexpr size_t n2 = 32;
+
+    __shared__ Data s_n2_n1[n2][n1+1];
+    __shared__ Data s_n1_n2[n1][n2+1];
+
+    __shared__ Root s_tw_root_n1[n1];
+    __shared__ Root s_tw_root_n2[n2];
+    
+    for(size_t tid = threadIdx.x; tid < n1; tid+= blockDim.x){
+        s_tw_root_n1[tid] =  n1_root_of_unity_table[tid];
+    }
+
+    for(size_t tid = threadIdx.x; tid < n2; tid+= blockDim.x){
+        s_tw_root_n2[tid] =  n2_root_of_unity_table[tid];
+    }
+
+    //seperate into warp
+    size_t warp_id = threadIdx.x >> 5;
+    size_t lane_id = threadIdx.x & 31;
+
+    for(size_t n1_idx = warp_id;n1_idx<n1;n1_idx+=){
+
+    }
+
+
+
+}*/
+
 /*2024-8-7:
 参数:
     device_in: 逆向NTT-n1*n2维转置矩阵 正向NTT-n2*n1维转置矩阵
@@ -3706,11 +3745,119 @@ void small_transpose_mult(Data* device_in, Data* device_out,int length,int batch
     }
 }
 
+__device__ void One_32(Data coesl[8],Data s_in[32][33]){
+
+}
 /*2024-8-24:
 用于测试对于64维度旋转因子的常量内存的访问*/
 __global__ void constant_m(){
     printf("[in constant_m]%lld\n",Csitable64[1]); //这里应该如何来实现呢
     //printf("1\n");
+}
+
+/*2024-9-7:
+<<<,dim3(32,4)>>>*/
+__global__ void Four_step_10(Data *g_in,Data *g_out,Root* n1_root, Root * n2_root, Root * W,Modulus * modulus){
+    __shared__ Data s_in[32][33];
+
+    Modulus q_thread = modulus[0];
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(i<<2)+threadIdx.y][threadIdx.x] = g_in[(((i<<2)+threadIdx.y)<<5) + threadIdx.x];
+
+    Data coesl[8];
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(i<<2)+threadIdx.y][threadIdx.x]; //以4为间隔来取
+
+    //level 1
+    CooleyTukeyUnit_(coesl[0],coesl[4], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[5], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[6], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[3],coesl[7], n1_root[0], q_thread);
+
+    //level 2
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[1], q_thread);
+
+    //level 3
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(i<<2)+threadIdx.y][threadIdx.x] = coesl[i];
+
+    __syncthreads();
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(threadIdx.y<<3)+i][threadIdx.x]; //以4为间隔来取
+
+    //level 4
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[threadIdx.y * 2 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[threadIdx.y * 2 + 1], q_thread);
+
+    //level 5
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[threadIdx.y * 4], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[threadIdx.y * 4 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[threadIdx.y * 4 + 2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[threadIdx.y * 4 + 3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[threadIdx.x][(threadIdx.y<<3)+i] = VALUE_GPU::mult(coesl[i],W[((threadIdx.y<<3)+i) * 32 + threadIdx.x],q_thread);//转置并且乘上来
+
+    __syncthreads();
+    
+    //下一轮
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(i<<2)+threadIdx.y][threadIdx.x]; //以4为间隔来取
+
+    //level 1
+    CooleyTukeyUnit_(coesl[0],coesl[4], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[5], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[6], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[3],coesl[7], n1_root[0], q_thread);
+
+    //level 2
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[1], q_thread);
+
+    //level 3
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(i<<2)+threadIdx.y][threadIdx.x] = coesl[i];
+
+    __syncthreads();
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(threadIdx.y<<3)+i][threadIdx.x]; //以4为间隔来取
+
+    //level 4
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[threadIdx.y * 2 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[threadIdx.y * 2 + 1], q_thread);
+
+    //level 5
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[threadIdx.y * 4], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[threadIdx.y * 4 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[threadIdx.y * 4 + 2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[threadIdx.y * 4 + 3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(threadIdx.y<<3)+i][threadIdx.x] = coesl[i]; //以4为间隔来取
 }
 /*2024-8-9:*/
 __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root_of_unity_table, Root* n2_root_of_unity_table, Root* W_root_of_unity_table, Root * n64_root_of_unity_table, Root * n64_W_root_of_unity_table, Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size, int mod_count){
@@ -3718,7 +3865,9 @@ __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root
     {
         case FORWARD:
             switch(cfg.n_power){
-                    
+                case 10:
+                    Four_step_10(device_in,device_out,n1_root_of_unity_table,n2_root_of_unity_table,W_root_of_unity_table,modulus);
+
                 case 12:
                     //测试small_transpose()函数
                     /*small_transpose(device_in, device_out,4096,batch_size,12);
@@ -3805,6 +3954,10 @@ __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root
         default:
             break;
     }
+}
+
+__host__ void negative_4_step(){
+    
 }
 
 __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_unity_table,

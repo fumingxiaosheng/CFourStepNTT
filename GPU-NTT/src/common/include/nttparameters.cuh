@@ -149,6 +149,8 @@ class NTTParameters4Step
     std::vector<Data>  n64_inerse_root_of_unity_table;
     std::vector<Data>  n64_W_root_of_unity_table;
 
+    
+
 #ifdef PLANTARD_64
     __uint128_t R;  // For plantard Reduction
 #endif
