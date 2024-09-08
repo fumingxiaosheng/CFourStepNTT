@@ -3865,8 +3865,8 @@ __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root
     {
         case FORWARD:
             switch(cfg.n_power){
-                case 10:
-                    Four_step_10(device_in,device_out,n1_root_of_unity_table,n2_root_of_unity_table,W_root_of_unity_table,modulus);
+                /*case 10:
+                    Four_step_10(device_in,device_out,n1_root_of_unity_table,n2_root_of_unity_table,W_root_of_unity_table,modulus);*/
 
                 case 12:
                     //测试small_transpose()函数
@@ -3957,7 +3957,7 @@ __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root
 }
 
 __host__ void negative_4_step(){
-    
+
 }
 
 __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_unity_table,

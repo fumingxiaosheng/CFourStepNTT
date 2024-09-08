@@ -88,6 +88,7 @@ set(CMAKE_DEPEND_INFO_FILES
   "src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/DependInfo.cmake"
   "example/cpu_ntt/CMakeFiles/cpu_4step_ntt.dir/DependInfo.cmake"
   "example/cpu_ntt/CMakeFiles/cpu_merge_ntt.dir/DependInfo.cmake"
+  "example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/DependInfo.cmake"
   "example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/DependInfo.cmake"
   "example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/DependInfo.cmake"
   "example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/DependInfo.cmake"

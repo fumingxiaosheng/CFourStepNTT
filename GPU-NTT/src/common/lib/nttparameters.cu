@@ -370,11 +370,15 @@ NTTParameters4Step::NTTParameters4Step(int LOGN,
     omega = omega_pool();
     psi = psi_pool();
 
+    negative_2n_root_of_unity = omega_2n_pool(); //TODO:omega_2n_pool本质上和psi_pool()是一样的
     //n_inv = VALUE::modinv(n, modulus);
 
     root_of_unity =
-        (poly_reduce_type == ReductionPolynomial::X_N_minus) ? omega : psi;
+        (poly_reduce_type == ReductionPolynomial::X_N_minus) ? omega : psi;//大部分都是使用omage的
+
+    
     inverse_root_of_unity = VALUE::modinv(root_of_unity, modulus); //本原单位根
+    negative_inverse_2n_root_of_unity = VALUE::modinv(negative_2n_root_of_unity, modulus);
 
     root_of_unity_size = (poly_reduce_type == ReductionPolynomial::X_N_minus)
                              ? (1 << (logn - 1))
@@ -396,6 +400,12 @@ NTTParameters4Step::NTTParameters4Step(int LOGN,
 
     n_inverse_generator();
 
+    negative_small_forward_root_of_unity_table_generator();
+    negative_small_inverse_root_of_unity_table_generator();
+
+    negative_TW_forward_table_generator();
+    negative_TW_inverse_table_generator();
+    //TODO:下面写求逆的n1和n2表还有整体的补偿表
 }
 
 NTTParameters4Step::NTTParameters4Step() {}
@@ -472,6 +482,35 @@ Data NTTParameters4Step::omega_pool()
     }
 }
 
+/*2024-9-8:
+基于find_define_num.sage,对于omega_pool中的n次本原单位根开方，得到2n次本原单位根*/
+Data NTTParameters4Step::omega_2n_pool()
+{
+    customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
+    if ((modular_reduction == ModularReductionType::BARRET) ||
+        (modular_reduction == ModularReductionType::PLANTARD))
+    {
+        static Data W[] = {
+            238394956950829, 54612008597396, 8242615629351, 
+            16141297350887, 3760097055997, 11571974431275, 
+            328867687796, 2298846063117, 731868219707, 
+            409596963254, 189266227206, 31864818375, 
+            92067739764, 5214432335, 734084005, 
+            3351406780, 717004697};
+
+        return W[logn - 12];
+    }
+    else if ((modular_reduction == ModularReductionType::GOLDILOCK))
+    {
+        throw std::runtime_error("Reduction type is not supported! GOLDLOCK");
+    }
+    else
+    {
+        throw std::runtime_error("Reduction type is not supported!");
+    }
+}
+
+/*2n次本原单位根*/
 Data NTTParameters4Step::psi_pool()
 {
     customAssert(12 <= logn <= 24, "LOGN should be in range 12 to 24.");
@@ -581,6 +620,30 @@ void NTTParameters4Step::small_forward_root_of_unity_table_generator(){
 
 }
 
+void NTTParameters4Step::negative_small_forward_root_of_unity_table_generator(){
+
+    Data exp_2n1 =  int(n / (2*n1));//n1次的多项式使用,负折叠卷积NTT
+    Data small_root_of_unity_2n1 = VALUE::exp(negative_2n_root_of_unity, exp_2n1, modulus); //注意使用2n次本原单位根
+    negative_2n1_based_root_of_unity_table.push_back(1);
+    for (int i = 1; i < n1; i++)//负折叠这里使用的是n1个旋转因子
+    {
+        Data exp = VALUE::mult(negative_2n1_based_root_of_unity_table[i - 1],
+                               small_root_of_unity_2n1, modulus); //前一个的值乘上 n1次本原单位根
+        negative_2n1_based_root_of_unity_table.push_back(exp);
+    }
+
+    Data exp_n2 =  int(n / n2); //n2次的多项式使用循环卷积NTT
+    Data small_root_of_unity_n2 = VALUE::exp(negative_2n_root_of_unity, exp_n2, modulus); 
+    negative_n2_based_root_of_unity_table.push_back(1);
+    for (int i = 1; i < (n2 >> 1); i++)
+    {
+        Data exp = VALUE::mult(negative_n2_based_root_of_unity_table[i - 1],
+                               small_root_of_unity_n2, modulus);
+        negative_n2_based_root_of_unity_table.push_back(exp);
+    }
+
+}
+
 /*2024-8-9:
 处理逻辑，计算64阶本单位根后,计算其0-31次方的值
 */
@@ -613,6 +676,35 @@ void NTTParameters4Step::TW_forward_table_generator(){
 
 }
 
+/*2024-9-8:
+生成负循环卷积NTT的补偿因子*/
+void NTTParameters4Step::negative_TW_forward_table_generator(){
+
+    int lg = log2(n1);
+    for(int i = 0; i < n1; i++){
+        for(int j = 0; j < n2; j++){
+            Data index = bitreverse(i, lg);
+            index = (index * 2 + 1) * j;
+            negative_W_root_of_unity_table.push_back(VALUE::exp(negative_2n_root_of_unity, index, modulus)); //注意使用2n次本原单位根
+        }
+    }
+}
+
+/*2024-9-8:
+生成负循环卷积NTT的补偿因子*/
+void NTTParameters4Step::negative_TW_inverse_table_generator(){
+
+    int lg = log2(n1);
+    for(int i = 0; i < n1; i++){
+        for(int j = 0; j < n2; j++){
+            Data index = bitreverse(i, lg);
+            index = (index * 2 + 1) * j;
+            negative_W_inverse_root_of_unity_table.push_back(VALUE::exp(negative_inverse_2n_root_of_unity, index, modulus)); //注意使用2n次本原单位根
+        }
+    }
+
+}
+
 void NTTParameters4Step::small_inverse_root_of_unity_table_generator(){
 
     Data exp_n1 =  int(n / n1);
@@ -635,6 +727,34 @@ void NTTParameters4Step::small_inverse_root_of_unity_table_generator(){
         Data exp = VALUE::mult(n2_based_inverse_root_of_unity_table[i - 1],
                                small_root_of_unity_n2, modulus);
         n2_based_inverse_root_of_unity_table.push_back(exp);
+    }
+
+}
+
+/*2028-9-8:
+生成逆的旋转因子表*/
+void NTTParameters4Step::negative_small_inverse_root_of_unity_table_generator(){
+
+    Data exp_2n1 =  int(n / (2*n1));//n1次的多项式使用,负折叠卷积NTT
+    Data small_root_of_unity_2n1 = VALUE::exp(negative_2n_root_of_unity, exp_2n1, modulus); //注意使用2n次本原单位根
+    small_root_of_unity_2n1 = VALUE::modinv(small_root_of_unity_2n1, modulus);
+    nefative_2n1_based_inverse_root_of_unity_table.push_back(1);
+    for (int i = 1; i < n1; i++)//负折叠这里使用的是n1个旋转因子
+    {
+        Data exp = VALUE::mult(nefative_2n1_based_inverse_root_of_unity_table[i - 1],
+                               small_root_of_unity_2n1, modulus); //前一个的值乘上 n1次本原单位根
+        nefative_2n1_based_inverse_root_of_unity_table.push_back(exp);
+    }
+
+    Data exp_n2 =  int(n / n2); //n2次的多项式使用循环卷积NTT
+    Data small_root_of_unity_n2 = VALUE::exp(negative_2n_root_of_unity, exp_n2, modulus); 
+    small_root_of_unity_n2 = VALUE::modinv(small_root_of_unity_n2, modulus);
+    negative_n2_based_inverse_root_of_unity_table.push_back(1);
+    for (int i = 1; i < (n2 >> 1); i++)
+    {
+        Data exp = VALUE::mult(negative_n2_based_inverse_root_of_unity_table[i - 1],
+                               small_root_of_unity_n2, modulus);
+        negative_n2_based_inverse_root_of_unity_table.push_back(exp);
     }
 
 }

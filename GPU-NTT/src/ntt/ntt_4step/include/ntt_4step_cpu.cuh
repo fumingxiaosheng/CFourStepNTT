@@ -21,12 +21,20 @@ class NTT_4STEP_CPU
 
     std::vector<Data> intt(std::vector<Data>& input);
 
+    //HXW ADD
+    std::vector<Data> negative_ntt(std::vector<Data>& input);
+    std::vector<Data> negative_intt(std::vector<Data>& input);
+    
+
    private:
     void core_ntt(std::vector<Data>& input, std::vector<Data> root_table, int log_size);
 
     void core_intt(std::vector<Data>& input, std::vector<Data> root_table, int log_size);
 
     void product(std::vector<Data>& input, std::vector<Data> root_table, int log_size);
+
+    void negative_core_ntt(std::vector<Data>& input, std::vector<Data> root_table, int log_size);
+    void negative_core_intt(std::vector<Data>& input, std::vector<Data> root_table, int log_size);
 
     std::vector<std::vector<Data>> vector_to_matrix(const std::vector<Data>& array, int rows,
                                                     int cols);

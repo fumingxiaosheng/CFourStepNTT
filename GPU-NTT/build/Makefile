@@ -182,6 +182,19 @@ cpu_merge_ntt/fast:
 .PHONY : cpu_merge_ntt/fast
 
 #=============================================================================
+# Target rules for targets named cpu_4step_negative_ntt
+
+# Build rule for target.
+cpu_4step_negative_ntt: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 cpu_4step_negative_ntt
+.PHONY : cpu_4step_negative_ntt
+
+# fast build rule for target.
+cpu_4step_negative_ntt/fast:
+	$(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build
+.PHONY : cpu_4step_negative_ntt/fast
+
+#=============================================================================
 # Target rules for targets named gpu_4step_ntt_examples
 
 # Build rule for target.
@@ -270,6 +283,7 @@ help:
 	@echo "... benchmark_4step_ntt"
 	@echo "... benchmark_merge_ntt"
 	@echo "... common"
+	@echo "... cpu_4step_negative_ntt"
 	@echo "... cpu_4step_ntt"
 	@echo "... cpu_merge_ntt"
 	@echo "... gpu_4step_intt_examples"

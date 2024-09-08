@@ -21,6 +21,47 @@ std::vector<Data> schoolbook_poly_multiplication(std::vector<Data> a, std::vecto
     }
 
     std::vector<Data> result(length, 0);
+    if(reduction_poly == ReductionPolynomial::X_N_minus) //循环卷积NTT
+    {
+        for(int i = 0; i < length; i++)
+        {
+            result[i] = VALUE::add(mult_vector[i], mult_vector[i + length], modulus);
+        }
+    }
+    else if(reduction_poly == ReductionPolynomial::X_N_plus) //负折叠卷积
+    {
+        for(int i = 0; i < length; i++)
+        {
+            result[i] = VALUE::sub(mult_vector[i], mult_vector[i + length], modulus);
+        }
+    }
+    else
+    {
+        throw std::runtime_error("Poly reduction type is not supported!");
+    }
+
+    return result;
+}
+
+/*2024-9-8:
+负折叠卷积NTT的school book实现*/
+std::vector<Data> schoolbook_poly_negative_multiplication(std::vector<Data> a, std::vector<Data> b,
+                                                 Modulus modulus,
+                                                 ReductionPolynomial reduction_poly)
+{
+    int length = a.size();
+    std::vector<Data> mult_vector(length * 2, 0);
+
+    for(int i = 0; i < length; i++)
+    {
+        for(int j = 0; j < length; j++)
+        {
+            Data mult_result = VALUE::mult(a[i], b[j], modulus);
+            mult_vector[i + j] = VALUE::add(mult_vector[i + j], mult_result, modulus);
+        }
+    }
+
+    std::vector<Data> result(length, 0);
     if(reduction_poly == ReductionPolynomial::X_N_minus)
     {
         for(int i = 0; i < length; i++)

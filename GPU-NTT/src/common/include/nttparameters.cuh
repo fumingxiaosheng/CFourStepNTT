@@ -126,6 +126,7 @@ class NTTParameters4Step
     Data omega;
     Data psi;
 
+
     Data n_inv;
     Ninverse n_inv_gpu;
 
@@ -149,6 +150,20 @@ class NTTParameters4Step
     std::vector<Data>  n64_inerse_root_of_unity_table;
     std::vector<Data>  n64_W_root_of_unity_table;
 
+    //HXW
+
+    Data negative_2n_root_of_unity;
+    Data negative_inverse_2n_root_of_unity;
+
+    std::vector<Data> negative_2n1_based_root_of_unity_table;
+    std::vector<Data> nefative_2n1_based_inverse_root_of_unity_table;
+
+    std::vector<Data> negative_n2_based_root_of_unity_table;
+    std::vector<Data> negative_n2_based_inverse_root_of_unity_table;
+    
+    std::vector<Data> negative_W_root_of_unity_table;
+    std::vector<Data> negative_W_inverse_root_of_unity_table;
+    
     
 
 #ifdef PLANTARD_64
@@ -168,6 +183,7 @@ class NTTParameters4Step
     Modulus modulus_pool();
 
     Data omega_pool();
+    Data omega_2n_pool();
 
     Data psi_pool();
 
@@ -188,6 +204,12 @@ class NTTParameters4Step
     void n64_root_of_unity_table_generator();
 
     void n64_W_root_of_unity_table_generator();
+
+    //HXW add
+    void negative_small_forward_root_of_unity_table_generator();
+    void negative_small_inverse_root_of_unity_table_generator();//TODO:实现逆
+    void negative_TW_forward_table_generator();
+    void negative_TW_inverse_table_generator();
 
 #ifdef PLANTARD_64
     __uint128_t R_pool();

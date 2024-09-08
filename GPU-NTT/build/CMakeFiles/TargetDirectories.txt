@@ -29,6 +29,7 @@
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/CMakeFiles/rebuild_cache.dir
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/cpu_ntt/CMakeFiles/cpu_4step_ntt.dir
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/cpu_ntt/CMakeFiles/cpu_merge_ntt.dir
+/home/hxw/CUDA/4-step/GPU-NTT/build/example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/cpu_ntt/CMakeFiles/edit_cache.dir
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/cpu_ntt/CMakeFiles/rebuild_cache.dir
 /home/hxw/CUDA/4-step/GPU-NTT/build/example/gpu_ntt/CMakeFiles/edit_cache.dir

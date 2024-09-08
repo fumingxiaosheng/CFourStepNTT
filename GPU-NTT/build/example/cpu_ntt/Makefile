@@ -144,6 +144,44 @@ cpu_merge_ntt/fast:
 	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_merge_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_merge_ntt.dir/build
 .PHONY : cpu_merge_ntt/fast
 
+# Convenience name for target.
+example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/rule:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/rule
+.PHONY : example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/rule
+
+# Convenience name for target.
+cpu_4step_negative_ntt: example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/rule
+.PHONY : cpu_4step_negative_ntt
+
+# fast build rule for target.
+cpu_4step_negative_ntt/fast:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build
+.PHONY : cpu_4step_negative_ntt/fast
+
+test_cpu_4step_negative_ntt.o: test_cpu_4step_negative_ntt.cu.o
+.PHONY : test_cpu_4step_negative_ntt.o
+
+# target to build an object file
+test_cpu_4step_negative_ntt.cu.o:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/test_cpu_4step_negative_ntt.cu.o
+.PHONY : test_cpu_4step_negative_ntt.cu.o
+
+test_cpu_4step_negative_ntt.i: test_cpu_4step_negative_ntt.cu.i
+.PHONY : test_cpu_4step_negative_ntt.i
+
+# target to preprocess a source file
+test_cpu_4step_negative_ntt.cu.i:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/test_cpu_4step_negative_ntt.cu.i
+.PHONY : test_cpu_4step_negative_ntt.cu.i
+
+test_cpu_4step_negative_ntt.s: test_cpu_4step_negative_ntt.cu.s
+.PHONY : test_cpu_4step_negative_ntt.s
+
+# target to generate assembly for a file
+test_cpu_4step_negative_ntt.cu.s:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/build.make example/cpu_ntt/CMakeFiles/cpu_4step_negative_ntt.dir/test_cpu_4step_negative_ntt.cu.s
+.PHONY : test_cpu_4step_negative_ntt.cu.s
+
 test_cpu_4step_ntt.o: test_cpu_4step_ntt.cu.o
 .PHONY : test_cpu_4step_ntt.o
 
@@ -200,8 +238,12 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... cpu_4step_negative_ntt"
 	@echo "... cpu_4step_ntt"
 	@echo "... cpu_merge_ntt"
+	@echo "... test_cpu_4step_negative_ntt.o"
+	@echo "... test_cpu_4step_negative_ntt.i"
+	@echo "... test_cpu_4step_negative_ntt.s"
 	@echo "... test_cpu_4step_ntt.o"
 	@echo "... test_cpu_4step_ntt.i"
 	@echo "... test_cpu_4step_ntt.s"
