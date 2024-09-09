@@ -622,7 +622,7 @@ void NTTParameters4Step::small_forward_root_of_unity_table_generator(){
 
 void NTTParameters4Step::negative_small_forward_root_of_unity_table_generator(){
 
-    Data exp_2n1 =  int(n / (2*n1));//n1次的多项式使用,负折叠卷积NTT
+    Data exp_2n1 =  n2;//n1次的多项式使用,负折叠卷积NTT
     Data small_root_of_unity_2n1 = VALUE::exp(negative_2n_root_of_unity, exp_2n1, modulus); //注意使用2n次本原单位根
     negative_2n1_based_root_of_unity_table.push_back(1);
     for (int i = 1; i < n1; i++)//负折叠这里使用的是n1个旋转因子
@@ -632,7 +632,7 @@ void NTTParameters4Step::negative_small_forward_root_of_unity_table_generator(){
         negative_2n1_based_root_of_unity_table.push_back(exp);
     }
 
-    Data exp_n2 =  int(n / n2); //n2次的多项式使用循环卷积NTT
+    Data exp_n2 =  2 * n1; //n2次的多项式使用循环卷积NTT
     Data small_root_of_unity_n2 = VALUE::exp(negative_2n_root_of_unity, exp_n2, modulus); 
     negative_n2_based_root_of_unity_table.push_back(1);
     for (int i = 1; i < (n2 >> 1); i++)
@@ -735,7 +735,7 @@ void NTTParameters4Step::small_inverse_root_of_unity_table_generator(){
 生成逆的旋转因子表*/
 void NTTParameters4Step::negative_small_inverse_root_of_unity_table_generator(){
 
-    Data exp_2n1 =  int(n / (2*n1));//n1次的多项式使用,负折叠卷积NTT
+    Data exp_2n1 =  n2;//n1次的多项式使用,负折叠卷积NTT
     Data small_root_of_unity_2n1 = VALUE::exp(negative_2n_root_of_unity, exp_2n1, modulus); //注意使用2n次本原单位根
     small_root_of_unity_2n1 = VALUE::modinv(small_root_of_unity_2n1, modulus);
     nefative_2n1_based_inverse_root_of_unity_table.push_back(1);
@@ -746,7 +746,7 @@ void NTTParameters4Step::negative_small_inverse_root_of_unity_table_generator(){
         nefative_2n1_based_inverse_root_of_unity_table.push_back(exp);
     }
 
-    Data exp_n2 =  int(n / n2); //n2次的多项式使用循环卷积NTT
+    Data exp_n2 =  2 * n1; //n2次的多项式使用循环卷积NTT
     Data small_root_of_unity_n2 = VALUE::exp(negative_2n_root_of_unity, exp_n2, modulus); 
     small_root_of_unity_n2 = VALUE::modinv(small_root_of_unity_n2, modulus);
     negative_n2_based_inverse_root_of_unity_table.push_back(1);
