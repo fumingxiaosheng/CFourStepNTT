@@ -144,6 +144,20 @@ gpu_4step_intt_examples/fast:
 	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/build
 .PHONY : gpu_4step_intt_examples/fast
 
+# Convenience name for target.
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/rule:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/rule
+.PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/rule
+
+# Convenience name for target.
+gpu_4step_negative_ntt_examples: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/rule
+.PHONY : gpu_4step_negative_ntt_examples
+
+# fast build rule for target.
+gpu_4step_negative_ntt_examples/fast:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build
+.PHONY : gpu_4step_negative_ntt_examples/fast
+
 test_4step_intt.o: test_4step_intt.cu.o
 .PHONY : test_4step_intt.o
 
@@ -167,6 +181,30 @@ test_4step_intt.s: test_4step_intt.cu.s
 test_4step_intt.cu.s:
 	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/test_4step_intt.cu.s
 .PHONY : test_4step_intt.cu.s
+
+test_4step_negative_ntt.o: test_4step_negative_ntt.cu.o
+.PHONY : test_4step_negative_ntt.o
+
+# target to build an object file
+test_4step_negative_ntt.cu.o:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/test_4step_negative_ntt.cu.o
+.PHONY : test_4step_negative_ntt.cu.o
+
+test_4step_negative_ntt.i: test_4step_negative_ntt.cu.i
+.PHONY : test_4step_negative_ntt.i
+
+# target to preprocess a source file
+test_4step_negative_ntt.cu.i:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/test_4step_negative_ntt.cu.i
+.PHONY : test_4step_negative_ntt.cu.i
+
+test_4step_negative_ntt.s: test_4step_negative_ntt.cu.s
+.PHONY : test_4step_negative_ntt.s
+
+# target to generate assembly for a file
+test_4step_negative_ntt.cu.s:
+	cd /home/hxw/CUDA/4-step/GPU-NTT/build && $(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/test_4step_negative_ntt.cu.s
+.PHONY : test_4step_negative_ntt.cu.s
 
 test_4step_ntt.o: test_4step_ntt.cu.o
 .PHONY : test_4step_ntt.o
@@ -201,10 +239,14 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... gpu_4step_intt_examples"
+	@echo "... gpu_4step_negative_ntt_examples"
 	@echo "... gpu_4step_ntt_examples"
 	@echo "... test_4step_intt.o"
 	@echo "... test_4step_intt.i"
 	@echo "... test_4step_intt.s"
+	@echo "... test_4step_negative_ntt.o"
+	@echo "... test_4step_negative_ntt.i"
+	@echo "... test_4step_negative_ntt.s"
 	@echo "... test_4step_ntt.o"
 	@echo "... test_4step_ntt.i"
 	@echo "... test_4step_ntt.s"

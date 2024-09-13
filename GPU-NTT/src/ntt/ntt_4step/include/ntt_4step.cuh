@@ -204,7 +204,12 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                             int mod_count);
 
 __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root_of_unity_table, Root* n2_root_of_unity_table, Root* W_root_of_unity_table, Root * n64_root_of_unity_table, Root * n64_W_inverse_root_of_unity_table, Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size, int mod_count);
+
+__host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_unity_table,
+                            Root* n2_root_of_unity_table, Root* W_root_of_unity_table,
+                            Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size,int mod_count);
 #endif  // NTT_4STEP_CORE_H
+
 
 
 //增加一个constant内存，用于存储旋转因子

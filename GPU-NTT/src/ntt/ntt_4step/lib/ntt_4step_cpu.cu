@@ -149,7 +149,7 @@ std::vector<Data> NTT_4STEP_CPU::negative_ntt(std::vector<Data>& input)
 
     std::vector<std::vector<Data>> transposed_matrix2 = transpose_matrix(transposed_matrix);
     std::vector<Data> vector_ = matrix_to_vector(transposed_matrix2);
-
+    
     product(vector_, parameters.negative_W_root_of_unity_table, parameters.logn);
 
     std::vector<std::vector<Data>> matrix3 =
@@ -190,7 +190,7 @@ std::vector<Data> NTT_4STEP_CPU::negative_intt(std::vector<Data>& input)
 
     for(int i = 0; i < parameters.n2; i++)
     {
-        negative_core_intt(transposed_matrix[i], parameters.nefative_2n1_based_inverse_root_of_unity_table,
+        negative_core_intt(transposed_matrix[i], parameters.negative_2n1_based_inverse_root_of_unity_table,
                   int(log2(parameters.n1))); //n2个n1维的NTT
     }
 
@@ -321,7 +321,6 @@ void NTT_4STEP_CPU::negative_core_ntt(std::vector<Data>& input, std::vector<Data
                 input[j + t] = VALUE::sub(U, V, parameters.modulus);
             }
         }
-
         m = m << 1;
     }
 }

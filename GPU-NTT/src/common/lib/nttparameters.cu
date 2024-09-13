@@ -738,12 +738,12 @@ void NTTParameters4Step::negative_small_inverse_root_of_unity_table_generator(){
     Data exp_2n1 =  n2;//n1次的多项式使用,负折叠卷积NTT
     Data small_root_of_unity_2n1 = VALUE::exp(negative_2n_root_of_unity, exp_2n1, modulus); //注意使用2n次本原单位根
     small_root_of_unity_2n1 = VALUE::modinv(small_root_of_unity_2n1, modulus);
-    nefative_2n1_based_inverse_root_of_unity_table.push_back(1);
+    negative_2n1_based_inverse_root_of_unity_table.push_back(1);
     for (int i = 1; i < n1; i++)//负折叠这里使用的是n1个旋转因子
     {
-        Data exp = VALUE::mult(nefative_2n1_based_inverse_root_of_unity_table[i - 1],
+        Data exp = VALUE::mult(negative_2n1_based_inverse_root_of_unity_table[i - 1],
                                small_root_of_unity_2n1, modulus); //前一个的值乘上 n1次本原单位根
-        nefative_2n1_based_inverse_root_of_unity_table.push_back(exp);
+        negative_2n1_based_inverse_root_of_unity_table.push_back(exp);
     }
 
     Data exp_n2 =  2 * n1; //n2次的多项式使用循环卷积NTT

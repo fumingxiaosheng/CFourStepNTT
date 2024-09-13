@@ -156,7 +156,7 @@ class NTTParameters4Step
     Data negative_inverse_2n_root_of_unity;
 
     std::vector<Data> negative_2n1_based_root_of_unity_table;
-    std::vector<Data> nefative_2n1_based_inverse_root_of_unity_table;
+    std::vector<Data> negative_2n1_based_inverse_root_of_unity_table;
 
     std::vector<Data> negative_n2_based_root_of_unity_table;
     std::vector<Data> negative_n2_based_inverse_root_of_unity_table;

@@ -26,8 +26,8 @@ int main(int argc, char* argv[])
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 17;
-        BATCH = 3;
+        LOGN = 13;
+        BATCH = 1;
     }
     else
     {
@@ -97,6 +97,9 @@ int main(int argc, char* argv[])
     {
         //input1[j].data()代表指向vector的第一个数据的指针
         THROW_IF_CUDA_ERROR(cudaMemcpy(Input_Datas + (parameters.n * j), input1[j].data(),
+                                       parameters.n * sizeof(Data), cudaMemcpyHostToDevice));
+        
+        THROW_IF_CUDA_ERROR(cudaMemcpy(Output_Datas + (parameters.n * j), input1[j].data(),
                                        parameters.n * sizeof(Data), cudaMemcpyHostToDevice));
 
         THROW_IF_CUDA_ERROR(cudaMemcpy(Input_Datas1 + (parameters.n * j), input1[j].data(),
@@ -168,7 +171,7 @@ int main(int argc, char* argv[])
                                       .stream = 0};
 
     //////////////////////////////////////////////////////////////////////////
-    GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
+    //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
 
 
     GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1);

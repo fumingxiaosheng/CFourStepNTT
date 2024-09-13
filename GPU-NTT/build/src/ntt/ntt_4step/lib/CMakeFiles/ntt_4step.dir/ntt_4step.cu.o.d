@@ -299,4 +299,4 @@ src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step.cu.o : /home/hxw/CUDA/4
     /home/hxw/CUDA/4-step/GPU-NTT/src/common/lib/../include/modular_arith.cuh \
     /usr/include/c++/11/cinttypes \
     /usr/include/inttypes.h \
-    /home/hxw/CUDA/4-step/GPU-NTT/src/ntt/ntt_4step/lib/../include/hxw_constant.cuh
+    /home/hxw/CUDA/4-step/GPU-NTT/src/common/lib/../include/hxw_constant.cuh

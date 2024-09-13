@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
             input2.push_back(dis(gen));
         }
     }
-
+    
     // Performing CPU NTT
     
     vector<Data> ntt_input1 = generator.negative_ntt(input1);

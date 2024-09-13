@@ -302,7 +302,7 @@ src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step.cu.o: ../src/ntt/ntt_4s
   ../src/common/include/modular_arith.cuh \
   /usr/include/c++/11/cinttypes \
   /usr/include/inttypes.h \
-  ../src/ntt/ntt_4step/include/hxw_constant.cuh
+  ../src/common/include/hxw_constant.cuh
 
 src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step_cpu.cu.o: ../src/ntt/ntt_4step/lib/ntt_4step_cpu.cu \
   /usr/include/stdc-predef.h \
@@ -725,8 +725,6 @@ src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step_cpu.cu.o: ../src/ntt/nt
 
 /usr/include/c++/11/stdlib.h:
 
-../src/ntt/ntt_4step/include/hxw_constant.cuh:
-
 /usr/include/x86_64-linux-gnu/bits/floatn-common.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/wint_t.h:
@@ -1012,6 +1010,8 @@ src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step_cpu.cu.o: ../src/ntt/nt
 /usr/include/c++/11/bits/stl_construct.h:
 
 /usr/include/c++/11/tr1/hypergeometric.tcc:
+
+../src/common/include/hxw_constant.cuh:
 
 /usr/include/curand_precalc.h:
 

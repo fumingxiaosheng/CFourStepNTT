@@ -221,6 +221,19 @@ gpu_4step_intt_examples/fast:
 .PHONY : gpu_4step_intt_examples/fast
 
 #=============================================================================
+# Target rules for targets named gpu_4step_negative_ntt_examples
+
+# Build rule for target.
+gpu_4step_negative_ntt_examples: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 gpu_4step_negative_ntt_examples
+.PHONY : gpu_4step_negative_ntt_examples
+
+# fast build rule for target.
+gpu_4step_negative_ntt_examples/fast:
+	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build
+.PHONY : gpu_4step_negative_ntt_examples/fast
+
+#=============================================================================
 # Target rules for targets named gpu_merge_ntt_examples
 
 # Build rule for target.
@@ -287,6 +300,7 @@ help:
 	@echo "... cpu_4step_ntt"
 	@echo "... cpu_merge_ntt"
 	@echo "... gpu_4step_intt_examples"
+	@echo "... gpu_4step_negative_ntt_examples"
 	@echo "... gpu_4step_ntt_examples"
 	@echo "... gpu_merge_intt_examples"
 	@echo "... gpu_merge_ntt_examples"

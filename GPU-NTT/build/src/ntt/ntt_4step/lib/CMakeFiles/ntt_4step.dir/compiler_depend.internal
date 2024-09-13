@@ -303,7 +303,7 @@ src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step.cu.o
  /home/hxw/CUDA/4-step/GPU-NTT/src/common/include/modular_arith.cuh
  /usr/include/c++/11/cinttypes
  /usr/include/inttypes.h
- /home/hxw/CUDA/4-step/GPU-NTT/src/ntt/ntt_4step/include/hxw_constant.cuh
+ /home/hxw/CUDA/4-step/GPU-NTT/src/common/include/hxw_constant.cuh
 
 src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/ntt_4step_cpu.cu.o
  /home/hxw/CUDA/4-step/GPU-NTT/src/ntt/ntt_4step/lib/ntt_4step_cpu.cu
