@@ -164,6 +164,11 @@ class NTTParameters4Step
     std::vector<Data> negative_W_root_of_unity_table;
     std::vector<Data> negative_W_inverse_root_of_unity_table;
     
+    //HXW
+    std::vector<Data>  n32_root_of_unity_table;
+    std::vector<Data>  n32_inerse_root_of_unity_table;
+    std::vector<Data>  n32_W_root_of_unity_table;
+
     
 
 #ifdef PLANTARD_64
@@ -210,6 +215,9 @@ class NTTParameters4Step
     void negative_small_inverse_root_of_unity_table_generator();//TODO:实现逆
     void negative_TW_forward_table_generator();
     void negative_TW_inverse_table_generator();
+
+    void n32_root_of_unity_table_generator();
+    void n32_W_root_of_unity_table_generator();
 
 #ifdef PLANTARD_64
     __uint128_t R_pool();

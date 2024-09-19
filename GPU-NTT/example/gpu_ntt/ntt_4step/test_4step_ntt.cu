@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 13;
+        LOGN = 15;
         BATCH = 1;
     }
     else
@@ -142,6 +142,19 @@ int main(int argc, char* argv[])
     THROW_IF_CUDA_ERROR(cudaMemcpy(n64_W_Table_device, parameters.n64_W_root_of_unity_table.data(),
                                    UNITY_SIZE1 * UNITY_SIZE2 * sizeof(Root), cudaMemcpyHostToDevice));
 
+
+    //新增1024的传输
+    vector<Root_> psitable32 =
+        parameters.gpu_root_of_unity_table_generator(parameters.n32_root_of_unity_table);
+    Root* psitable_device32;
+
+    THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device32, 16 * sizeof(Root)));
+    THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device32, psitable32.data(), 16 * sizeof(Root), cudaMemcpyHostToDevice));
+
+    Root* n32_W_Table_device;
+    THROW_IF_CUDA_ERROR(cudaMalloc(&n32_W_Table_device, 1024 * sizeof(Root)));
+    THROW_IF_CUDA_ERROR(cudaMemcpy(n32_W_Table_device, parameters.n32_W_root_of_unity_table.data(), 1024 * sizeof(Root), cudaMemcpyHostToDevice));
+
     //////////////////////////////////////////////////////////////////////////
 
     
@@ -174,10 +187,10 @@ int main(int argc, char* argv[])
     //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
 
 
-    GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1);
+    GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1, psitable_device32, n32_W_Table_device);
 
     //根据自己定义的划分进行求值
-    if(parameters.n == (1 << 12)){
+    /*if(parameters.n == (1 << 12)){
         printf("n=4096\n");
         parameters.n1 = 64;
         parameters.n2 = 64;
@@ -191,7 +204,7 @@ int main(int argc, char* argv[])
     
     GPU_Transpose(Input_Datas1, Output_Datas1, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度
 
-    GPU_4STEP_NTT_hxw(Output_Datas1, Input_Datas1, psitable_device1, psitable_device2, W_Table_device, psitable_device64, n64_W_Table_device ,test_modulus, cfg_intt, BATCH, 1);
+    GPU_4STEP_NTT_hxw(Output_Datas1, Input_Datas1, psitable_device1, psitable_device2, W_Table_device, psitable_device64, n64_W_Table_device ,test_modulus, cfg_intt, BATCH, 1);*/
     //GPU_4STEP_NTT_hxw(Output_Datas1, Input_Datas1, psitable_device1, psitable_device2, W_Table_device, Csitable64, n64_W_Table_device ,test_modulus, cfg_intt, BATCH, 1);
 
     //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);
@@ -200,9 +213,9 @@ int main(int argc, char* argv[])
     cudaMemcpy(Output_Host.data(), Input_Datas, parameters.n * BATCH * sizeof(Data),
                cudaMemcpyDeviceToHost);
 
-    vector<Data> Output_Host1(parameters.n * BATCH);
+    /*vector<Data> Output_Host1(parameters.n * BATCH);
     cudaMemcpy(Output_Host1.data(), Input_Datas1, parameters.n * BATCH * sizeof(Data),
-               cudaMemcpyDeviceToHost);
+               cudaMemcpyDeviceToHost);*/
 
     cudaDeviceSynchronize();
     // Comparing GPU NTT results and CPU NTT results
@@ -235,7 +248,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    for(int i = 0; i < BATCH; i++)
+    /*for(int i = 0; i < BATCH; i++)
     {
         check = check_result(Output_Host1.data() + (i * parameters.n), ntt_result[i].data(),
                              parameters.n);
@@ -250,7 +263,7 @@ int main(int argc, char* argv[])
         {
             cout << "hxw All Correct." << endl;
         }
-    }
+    }*/
 
     return EXIT_SUCCESS;
 }

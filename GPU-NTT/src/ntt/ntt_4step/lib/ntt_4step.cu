@@ -8,6 +8,9 @@
 #include "hxw_constant.cuh"
 
 //extern __constant__ Root Csitable64[32];
+__global__ void cyclic_10(Data *g_in,Data *g_out, Root * W_b, Root* n1_root, Root * W,Modulus * modulus,int n_power);
+
+
 __device__ void CooleyTukeyUnit_hxw(Data& U_out, Data& V_out,Data& U, Data& V, Root& root, Modulus& modulus)
 {
     Data u_ = U;
@@ -3223,7 +3226,7 @@ mod_count:传入的是1
 __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_unity_table,
                             Root* n2_root_of_unity_table, Root* W_root_of_unity_table,
                             Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size,
-                            int mod_count)
+                            int mod_count,Root* n32_root_of_unity_table, Root* n32_W_root_of_unity_table)
 {
     switch(cfg.ntt_type) //ntt_type指定了是做正向ntt还是逆向ntt
     {
@@ -3273,13 +3276,19 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 15:
                     // 6 + 9
-                    FourStepForwardCoreT2<<<dim3(32, batch_size), dim3(32, 8)>>>(
+                    /*FourStepForwardCoreT2<<<dim3(32, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
                         mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
                         15, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());*/
+                    printf("compute 15\n");
+                    cyclic_5<<<dim3(32, batch_size), dim3(32, 8)>>>(
+                        device_in, device_out, n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    cyclic_10<<<dim3(32,batch_size), dim3(32, 8)>>>(device_out,device_out,W_root_of_unity_table,n32_root_of_unity_table,n32_W_root_of_unity_table,modulus,15);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 16:
@@ -3833,8 +3842,221 @@ __global__ void constant_m(){
     //printf("1\n");
 }
 
-/*2024-9-7:
-<<<,dim3(32,4)>>>*/
+/*2024-9-14:
+循环卷积ntt，基于1024维来做
+<<<n/1024,batch_size,dim3(32,4)>>>*/
+__global__ void cyclic_10_v1(Data *g_in,Data *g_out, Root * W_b, Root* n1_root, Root * W,Modulus * modulus,int n_power){
+    
+    int divindex = blockIdx.y << n_power;
+    int g_start = blockIdx.x << 10;
+
+__shared__ Data s_in[32][33];
+
+    Modulus q_thread = modulus[0];
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(i<<2)+threadIdx.y][threadIdx.x] =VALUE_GPU::mult( g_in[(((i<<2)+threadIdx.y)<<5) + threadIdx.x + divindex + g_start],W_b[(((i<<2)+threadIdx.y)<<5) + threadIdx.x + g_start],q_thread);
+
+    Data coesl[8];
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(i<<2)+threadIdx.y][threadIdx.x]; //以4为间隔来取
+
+    //level 1
+    CooleyTukeyUnit_(coesl[0],coesl[4], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[5], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[6], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[3],coesl[7], n1_root[0], q_thread);
+
+    //level 2
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[1], q_thread);
+
+    //level 3
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(i<<2)+threadIdx.y][threadIdx.x] = coesl[i];
+
+    __syncthreads();
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[(threadIdx.y<<3)+i][threadIdx.x]; //每个线程取连续的8个
+
+    //level 4
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[threadIdx.y * 2 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[threadIdx.y * 2 + 1], q_thread);
+
+    //level 5
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[threadIdx.y * 4], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[threadIdx.y * 4 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[threadIdx.y * 4 + 2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[threadIdx.y * 4 + 3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[(threadIdx.y<<3)+i][threadIdx.x] = VALUE_GPU::mult(coesl[i],W[((threadIdx.y<<3)+i) * 32 + threadIdx.x],q_thread);
+    __syncthreads();
+    
+    //下一轮
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[threadIdx.x][(i<<2)+threadIdx.y]; //以4为间隔来取
+
+    //level 1
+    CooleyTukeyUnit_(coesl[0],coesl[4], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[5], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[6], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[3],coesl[7], n1_root[0], q_thread);
+
+    //level 2
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[1], q_thread);
+
+    //level 3
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[threadIdx.x][(i<<2)+threadIdx.y] = coesl[i];
+
+    __syncthreads();
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) coesl[i] = s_in[threadIdx.x][(threadIdx.y<<3)+i]; //以4为间隔来取
+
+    //level 4
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y * 2], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[6], n1_root[threadIdx.y * 2 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[5],coesl[7], n1_root[threadIdx.y * 2 + 1], q_thread);
+
+    //level 5
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[threadIdx.y * 4], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[threadIdx.y * 4 + 1], q_thread);
+    CooleyTukeyUnit_(coesl[4],coesl[5], n1_root[threadIdx.y * 4 + 2], q_thread);
+    CooleyTukeyUnit_(coesl[6],coesl[7], n1_root[threadIdx.y * 4 + 3], q_thread);
+
+#pragma unroll
+    for(size_t i=0;i<8;i++) s_in[threadIdx.x][(threadIdx.y<<3)+i] = coesl[i];
+    
+    __syncthreads();
+    
+#pragma unroll
+    for(size_t i=0;i<8;i++)   g_out[(((i<<2)+threadIdx.y)<<5) + threadIdx.x + divindex + g_start] = s_in[(i<<2)+threadIdx.y][threadIdx.x]; //形成合并内存访问
+
+}
+
+/*2024-9-19:
+改进版本
+<<<n/1024,batch_size,dim3(32,8)>>>*/
+__global__ void cyclic_10(Data *g_in,Data *g_out, Root * W_b, Root* n1_root, Root * W,Modulus * modulus,int n_power){
+    
+    int divindex = blockIdx.y << n_power;
+    int g_start = blockIdx.x << 10;
+
+    __shared__ Data s_in[32][33];
+
+    Modulus q_thread = modulus[0];
+
+    Data coesl[4];
+    size_t i;
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[(i<<3)+threadIdx.y][threadIdx.x] =VALUE_GPU::mult( g_in[(((i<<3)+threadIdx.y)<<5) + threadIdx.x + divindex + g_start],W_b[(((i<<3)+threadIdx.y)<<5) + threadIdx.x + g_start],q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i] = s_in[(i<<3) + threadIdx.y][threadIdx.x]; //TODO:这里改成对于warp shuffle的操作
+    
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[(i<<3) + threadIdx.y][threadIdx.x] = coesl[i];
+    __syncthreads();
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i] = s_in[((threadIdx.y >> 1) << 3)+ (i << 1) + (threadIdx.y & 1)][threadIdx.x];
+
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y >> 1], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y >> 1], q_thread);
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[((threadIdx.y >> 1) << 1)], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[((threadIdx.y >> 1) << 1) + 1], q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[((threadIdx.y >> 1) << 3)+ (i << 1) + (threadIdx.y & 1)][threadIdx.x] = coesl[i];
+    __syncthreads();
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i]= s_in[i + (threadIdx.y << 2)][threadIdx.x]; //取连续的4个系数
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[(threadIdx.y << 1)], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[(threadIdx.y << 1) + 1], q_thread);
+
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[i + (threadIdx.y << 2)][threadIdx.x] = VALUE_GPU::mult(coesl[i],W[((i + (threadIdx.y << 2)) << 5) + threadIdx.x],q_thread);
+    __syncthreads();
+    
+    //进行转职后的操作
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i] = s_in[threadIdx.x][(i<<3) + threadIdx.y]; //TODO:这里改成对于warp shuffle的操作
+    
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[0], q_thread);
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[0], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[1], q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[threadIdx.x][(i<<3) + threadIdx.y] = coesl[i];
+    __syncthreads();
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i] = s_in[threadIdx.x][((threadIdx.y >> 1) << 3)+ (i << 1) + (threadIdx.y & 1)];
+
+    CooleyTukeyUnit_(coesl[0],coesl[2], n1_root[threadIdx.y >> 1], q_thread);
+    CooleyTukeyUnit_(coesl[1],coesl[3], n1_root[threadIdx.y >> 1], q_thread);
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[((threadIdx.y >> 1) << 1)], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[((threadIdx.y >> 1) << 1) + 1], q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[threadIdx.x][((threadIdx.y >> 1) << 3)+ (i << 1) + (threadIdx.y & 1)] = coesl[i];
+    __syncthreads();
+
+#pragma unroll
+    for(i=0;i<4;i++) coesl[i] = s_in[threadIdx.x][i + (threadIdx.y << 2)]; //取连续的4个系数
+    
+    CooleyTukeyUnit_(coesl[0],coesl[1], n1_root[(threadIdx.y << 1)], q_thread);
+    CooleyTukeyUnit_(coesl[2],coesl[3], n1_root[(threadIdx.y << 1) + 1], q_thread);
+
+#pragma unroll
+    for(i=0;i<4;i++) s_in[threadIdx.x][i + (threadIdx.y << 2)] = coesl[i];
+    __syncthreads();
+    //写回到全局内存中
+
+    
+#pragma unroll
+    for(i=0;i<4;i++) g_out[(((i<<3)+threadIdx.y)<<5) + threadIdx.x + divindex + g_start] = s_in[(i<<3)+threadIdx.y][threadIdx.x];
+}
+
+
 __global__ void Four_step_10(Data *g_in,Data *g_out,Root* n1_root, Root * n2_root, Root * W,Modulus * modulus){
     __shared__ Data s_in[32][33];
 
@@ -3937,6 +4159,8 @@ __global__ void Four_step_10(Data *g_in,Data *g_out,Root* n1_root, Root * n2_roo
 #pragma unroll
     for(size_t i=0;i<8;i++) s_in[(threadIdx.y<<3)+i][threadIdx.x] = coesl[i]; //以4为间隔来取
 }
+
+
 /*2024-8-9:*/
 __host__ void GPU_4STEP_NTT_hxw(Data* device_in, Data* device_out, Root* n1_root_of_unity_table, Root* n2_root_of_unity_table, Root* W_root_of_unity_table, Root * n64_root_of_unity_table, Root * n64_W_root_of_unity_table, Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size, int mod_count){
     switch(cfg.ntt_type) //ntt_type指定了是做正向ntt还是逆向ntt
@@ -4492,6 +4716,13 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 14,mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
+
+                case 15:
+                    printf("compute 15\n");
+                    negative_5<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    //32个1024维NTT
+
             }
             break;
 

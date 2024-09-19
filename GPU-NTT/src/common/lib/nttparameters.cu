@@ -392,11 +392,14 @@ NTTParameters4Step::NTTParameters4Step(int LOGN,
     small_inverse_root_of_unity_table_generator();
 
     n64_root_of_unity_table_generator(); //HXW add
+    n32_root_of_unity_table_generator();
+
 
     TW_forward_table_generator();
     TW_inverse_table_generator();
 
     n64_W_root_of_unity_table_generator(); //HXW add
+    n32_W_root_of_unity_table_generator();
 
     n_inverse_generator();
 
@@ -557,7 +560,8 @@ std::vector<int>  NTTParameters4Step::matrix_dimention() {
             shape = { 32, 512 };
             return shape;
 		case 15:
-            shape = { 64, 512 };
+            //shape = { 64, 512 };
+            shape = { 32, 1024 };
             return shape;
 		case 16:
             //shape = { 128, 512 };
@@ -659,6 +663,19 @@ void NTTParameters4Step::n64_root_of_unity_table_generator(){
         //printf("%lld,",exp);
     }
     //printf("\n");
+}
+
+/*2024-9-19:
+计算32阶本原单位根*/
+void NTTParameters4Step::n32_root_of_unity_table_generator(){
+    Data exp_n32 =  int(n / 32);
+    Data small_root_of_unity_n32 = VALUE::exp(root_of_unity, exp_n32, modulus);
+    n32_root_of_unity_table.push_back(1);
+    for(int i=1; i < 16; i++){
+        Data exp = VALUE::mult(n32_root_of_unity_table[i - 1],
+                               small_root_of_unity_n32, modulus);
+        n32_root_of_unity_table.push_back(exp);
+    }
 }
 
 /*2024-8-4:
@@ -797,6 +814,21 @@ void NTTParameters4Step::n64_W_root_of_unity_table_generator(){
         }
     }
    //printf("n4096_root_of_unity:%lld\n",n4096_root_of_unity);
+}
+
+/*2024-9-19:
+计算1024的补偿因子*/
+void NTTParameters4Step::n32_W_root_of_unity_table_generator(){
+    Data exp_n1024 = int(n / 1024) ;//DEBUG:这里一定要单独把exp_n64写出来
+    Data n1024_root_of_unity = VALUE::exp(root_of_unity, exp_n1024, modulus);
+    int lg = log2(32);
+    for(int i = 0; i < 32; i++){
+        for(int j = 0; j < 32; j++){
+            Data index = bitreverse(i, lg);
+            index = index * j;
+            n32_W_root_of_unity_table.push_back(VALUE::exp(n1024_root_of_unity, index, modulus));
+        }
+    }
 }
 
 void NTTParameters4Step::n_inverse_generator(){
