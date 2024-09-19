@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 12;
+        LOGN = 15;
         BATCH = 1;
     }
     else
@@ -117,6 +117,17 @@ int main(int argc, char* argv[])
     THROW_IF_CUDA_ERROR(cudaMemcpy(W_Table_device, parameters.negative_W_root_of_unity_table.data(),
                                    parameters.n * sizeof(Root), cudaMemcpyHostToDevice));
 
+    vector<Root_> psitable32 =
+        parameters.gpu_root_of_unity_table_generator(parameters.n32_root_of_unity_table);
+    Root* psitable_device32;
+
+    THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device32, 16 * sizeof(Root)));
+    THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device32, psitable32.data(), 16 * sizeof(Root), cudaMemcpyHostToDevice));
+
+    Root* n32_W_Table_device;
+    THROW_IF_CUDA_ERROR(cudaMalloc(&n32_W_Table_device, 1024 * sizeof(Root)));
+    THROW_IF_CUDA_ERROR(cudaMemcpy(n32_W_Table_device, parameters.n32_W_root_of_unity_table.data(), 1024 * sizeof(Root), cudaMemcpyHostToDevice));
+
     //////////////////////////////////////////////////////////////////////////
 
     Modulus* test_modulus;//用于存放模数
@@ -141,7 +152,7 @@ int main(int argc, char* argv[])
                                       .stream = 0};
 
     
-    GPU_NEGATIVE_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_init, BATCH, 1);
+    GPU_NEGATIVE_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, psitable_device32, n32_W_Table_device, test_modulus, cfg_init, BATCH, 1);
 
     vector<Data> Output_Host(parameters.n * BATCH);
     cudaMemcpy(Output_Host.data(), Input_Datas, parameters.n * BATCH * sizeof(Data),

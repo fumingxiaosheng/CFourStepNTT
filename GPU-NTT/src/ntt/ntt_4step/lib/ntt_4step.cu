@@ -3175,6 +3175,39 @@ __global__ void FourStepPartialInverseCore2(Data* polynomial_in, Root* n2_root_o
     polynomial_in[load_store_address + loc2 + divindex] = temp2;
 }
 
+/*2024-9-19:
+基于warp-shuffle的1024维NTT实现
+*/
+/*__device__ void device_4_step_ntt_forward_phase1(Data s_out[32][33],Data s_in[32][33], Root * n1_root_of_unity_table,Modulus* modulus,int mod_count){
+    //constexpr size_t n1 = 32;
+    constexpr size_t n2 = 32;
+
+    int q_index = blockIdx.z % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    const size_t WarpsPerBlock = blockDim.x / warpSize;
+    const size_t warp_id = threadIdx.x >> 5;
+    const size_t lane_id = threadIdx.x & 31;
+
+    for(size_t n2_idx = warp_id; n2_idx < n2; n2_idx += WarpsPerBlock){
+        Data reg = s_in[n2_idx][lane_id];
+        for(size_t log_m = 0;log_m < 5; log_m++){
+            size_t log_step = 4 - log_m;
+            size_t w_idx = lane_id >> (log_step + 1);//对当前的线程进行划分
+            Data reg_new = __shfl_xor_sync(0xffffffff,reg,1 << log_step);//取出一个新的值
+            size_t C = (lane_id >> log_step) & 1; //下一层的分组，取出其奇偶属性;上部为0,下部为1
+            Data left = (1-C) * (reg - reg_new) + reg_new; //C=0时,值为reg; C=1时,值为reg_new
+            Data right = C * (reg - reg_new) + reg_new; //C=0时,值为reg_new; C=1时,值为reg
+            
+            
+            CooleyTukeyUnit_(left,right,n1_root_of_unity_table[w_idx], q_thread); //TODO:若此处为负循环卷积，那么n1_root_of_unity_table的下标应该加上(1<<log_m)
+
+            reg = (1-C) * (left - right) + right;//上部为0,存储left;下部为1，存储right
+
+        }
+    }
+}*/
+
 /*
 2024-9-7:
 1024维度的优化NTT实现
@@ -3184,7 +3217,7 @@ Data* polynomial_in, Root* n2_root_of_unity_table,
                                             int loc2, int loc3, int loop, Ninverse inverse,
                                             int poly_n_power
 */
-/*__global__ void FourStepForward1024(Data * polynomial_out,Data * polynomial_in,const Root* n2_root_of_unity_table,const Root* n1_root_of_unity_table,const Root* W_root_of_unity_table){
+/*__global__ void FourStepForward1024(Data * polynomial_out,Data * polynomial_in,const Root* n2_root_of_unity_table,const Root* n1_root_of_unity_table,const Root* W_root_of_unity_table, Modulus* modulus,int mod_count){
     constexpr size_t n1 = 32;
     constexpr size_t n2 = 32;
 
@@ -3193,7 +3226,10 @@ Data* polynomial_in, Root* n2_root_of_unity_table,
 
     __shared__ Root s_tw_root_n1[n1];
     __shared__ Root s_tw_root_n2[n2];
-    
+
+    const size_t warpsPerBlock = blockDim.x / warpSize;
+
+    //读取相应的旋转因子表到共享内存中
     for(size_t tid = threadIdx.x; tid < n1; tid+= blockDim.x){
         s_tw_root_n1[tid] =  n1_root_of_unity_table[tid];
     }
@@ -3202,14 +3238,16 @@ Data* polynomial_in, Root* n2_root_of_unity_table,
         s_tw_root_n2[tid] =  n2_root_of_unity_table[tid];
     }
 
-    //seperate into warp
     size_t warp_id = threadIdx.x >> 5;
     size_t lane_id = threadIdx.x & 31;
 
-    for(size_t n1_idx = warp_id;n1_idx<n1;n1_idx+=){
-
+    //每次完成warpsPerBlock行共享内存的储存,将下标为(n1_idx,lane_id)的点，放置到共享内存矩阵的(lane_id,n1_idx)位置
+    for(size_t n1_idx = warp_id;n1_idx < n1; n1_idx += warpsPerBlock){
+        s_n2_n1[lane_id][n1_idx] = polynomial_in[n1_idx * n2 + lane_id];
     }
 
+
+    device_4_step_ntt_forward_phase1(s_n1_n2,s_n2_n1,s_tw_root_n1,modulus,mod_count);
 
 
 }*/
@@ -3284,6 +3322,8 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
                         15, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());*/
+
+                    //hxw 5+10
                     printf("compute 15\n");
                     cyclic_5<<<dim3(32, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
@@ -4056,6 +4096,69 @@ __global__ void cyclic_10(Data *g_in,Data *g_out, Root * W_b, Root* n1_root, Roo
     for(i=0;i<4;i++) g_out[(((i<<3)+threadIdx.y)<<5) + threadIdx.x + divindex + g_start] = s_in[(i<<3)+threadIdx.y][threadIdx.x];
 }
 
+/*2024-9-19:
+改进版本:使用warp_shuffle代替共享内存的访问
+TODO:拜托了共享内存的限制，后续是否能进一步做加强呢
+线程组织结构:<<<1,dim3(32,8)>>> 或者 <<<1,dim3(32,8)>>>*/
+__global__ void cyclic_10_v4(Data *g_in,Data *g_out, Root * W_b, Root* n1_root, Root * W,Modulus * modulus,int n_power){
+    
+    int divindex = blockIdx.y << n_power;
+    int g_start = blockIdx.x << 10;
+
+    __shared__ Data s_in[32][33];
+
+    Modulus q_thread = modulus[0];
+
+    size_t i;
+
+    //正着填充
+#pragma unroll
+    for(i = threadIdx.y;i<32;i+=blockDim.y){
+        s_in[i][threadIdx.x] =VALUE_GPU::mult( g_in[(i<<5) + threadIdx.x + divindex + g_start],W_b[(i<<5) + threadIdx.x + g_start],q_thread);
+    }
+
+    __syncthreads();
+
+    //合并step1和step2，使用共享内存的存储体冲突来避免转置的操作
+    for(size_t y = threadIdx.y;y < 32; y += blockDim.y){//使用y代表当前处理的列
+        Data reg = s_in[threadIdx.x][y];
+        for(size_t log_32 = 0;log_32 < 5; log_32++){
+            size_t log_step = 4 - log_32;
+            Data reg_another = __shfl_xor_sync(0xffffffff,reg,1 << log_step);
+            size_t C = (threadIdx.x >> log_step) & 1;
+            Data left = (1-C) * (reg - reg_another) + reg_another;
+            Data right = C * (reg - reg_another) + reg_another;
+            CooleyTukeyUnit_(left,right, n1_root[threadIdx.x >> (log_step+1)], q_thread);
+            reg = (1-C) * (left - right) + right;
+        }
+        s_in[threadIdx.x][y] = reg;
+    }
+
+    __syncthreads();
+
+    //step3:完成补偿因子的补偿
+    for(i = threadIdx.y;i<32;i+=blockDim.y){
+        s_in[i][threadIdx.x] = VALUE_GPU::mult(s_in[i][threadIdx.x],W[(i << 5) + threadIdx.x],q_thread);//形成合并内存访问
+    }
+
+    //step4:再做一层
+    for(size_t x = threadIdx.y;x < 32; x += blockDim.y){//使用y代表当前处理的列
+        Data reg = s_in[x][threadIdx.x];
+        for(size_t log_32 = 0;log_32 < 5; log_32++){
+            size_t log_step = 4 - log_32;
+            Data reg_another = __shfl_xor_sync(0xffffffff,reg,1 << log_step);
+            size_t C = (threadIdx.x >> log_step) & 1;
+            Data left = (1-C) * (reg - reg_another) + reg_another;
+            Data right = C * (reg - reg_another) + reg_another;
+            CooleyTukeyUnit_(left,right, n1_root[threadIdx.x >> (log_step+1)], q_thread);
+            reg = (1-C) * (left - right) + right;
+        }
+        //s_in[x][threadIdx.x] = reg;
+        g_out[(x << 5) + threadIdx.x + divindex + g_start] = reg;
+    }
+
+}
+
 
 __global__ void Four_step_10(Data *g_in,Data *g_out,Root* n1_root, Root * n2_root, Root * W,Modulus * modulus){
     __shared__ Data s_in[32][33];
@@ -4685,7 +4788,7 @@ __global__ void negative_5(Data* polynomial_in, Data* polynomial_out,Root* n1_ro
 }
 
 __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* negative_2n1_root_of_unity_table,
-                            Root* negative_n2_root_of_unity_table, Root* negative_W_root_of_unity_table,
+                            Root* negative_n2_root_of_unity_table, Root* negative_W_root_of_unity_table, Root* n32_root_of_unity_table, Root* n32_W_root_of_unity_table,
                             Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size,int mod_count){
     switch(cfg.ntt_type)
     {
@@ -4722,6 +4825,9 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     negative_5<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     //32个1024维NTT
+                    cyclic_10<<<dim3(32,batch_size), dim3(32, 8)>>>(device_out,device_out,negative_W_root_of_unity_table,n32_root_of_unity_table,n32_W_root_of_unity_table,modulus,15);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
 
             }
             break;
