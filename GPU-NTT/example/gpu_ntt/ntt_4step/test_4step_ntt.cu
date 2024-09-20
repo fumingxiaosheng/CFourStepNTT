@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 15;
+        LOGN = 20;
         BATCH = 1;
     }
     else
