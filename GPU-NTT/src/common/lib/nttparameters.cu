@@ -589,8 +589,8 @@ std::vector<int>  NTTParameters4Step::matrix_dimention() {
             shape = { 128, 65536 };
             return shape;
 		case 24:
-            //shape = { 256, 65536 };
-            shape = {4096,4096};
+            shape = { 256, 65536 };
+            //shape = {4096,4096};
             return shape;
         default:
             throw std::runtime_error("Invalid choice.\n");
