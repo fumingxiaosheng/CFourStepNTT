@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
     //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
 
 
-    GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1, psitable_device32, n32_W_Table_device);
+    GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1);
 
     //根据自己定义的划分进行求值
     /*if(parameters.n == (1 << 12)){

@@ -152,7 +152,7 @@ int main(int argc, char* argv[])
                                       .stream = 0};
 
     
-    GPU_NEGATIVE_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, psitable_device32, n32_W_Table_device, test_modulus, cfg_init, BATCH, 1);
+    GPU_NEGATIVE_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_init, BATCH, 1);
 
     vector<Data> Output_Host(parameters.n * BATCH);
     cudaMemcpy(Output_Host.data(), Input_Datas, parameters.n * BATCH * sizeof(Data),

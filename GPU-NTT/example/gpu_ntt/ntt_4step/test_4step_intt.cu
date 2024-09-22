@@ -135,10 +135,10 @@ int main(int argc, char* argv[])
 
     //////////////////////////////////////////////////////////////////////////
 
-    // GPU_4STEP_NTT(Input_Datas, Output_Datas, psitable_device1, psitable_device2, W_Table_device,
-    //               test_modulus, cfg_intt, BATCH, 1);//求逆时,Input_Datas是n1*n2维度的矩阵 TODO:打开开关以进行计算
+    GPU_4STEP_NTT(Input_Datas, Output_Datas, psitable_device1, psitable_device2, W_Table_device,
+                  test_modulus, cfg_intt, BATCH, 1);//求逆时,Input_Datas是n1*n2维度的矩阵 TODO:打开开关以进行计算
 
-    GPU_Transpose(Output_Datas, Input_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);
+    //GPU_Transpose(Output_Datas, Input_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);
 
     vector<Data> Output_Host(parameters.n * BATCH);
     cudaMemcpy(Output_Host.data(), Input_Datas, parameters.n * BATCH * sizeof(Data),
