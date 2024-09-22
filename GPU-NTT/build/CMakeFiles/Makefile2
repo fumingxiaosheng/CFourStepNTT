@@ -159,6 +159,7 @@ example/gpu_ntt/clean: example/gpu_ntt/ntt_merge/clean
 example/gpu_ntt/ntt_4step/all: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/all
 example/gpu_ntt/ntt_4step/all: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/all
 example/gpu_ntt/ntt_4step/all: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/all
+example/gpu_ntt/ntt_4step/all: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all
 .PHONY : example/gpu_ntt/ntt_4step/all
 
 # Recursive "preinstall" directory target.
@@ -169,6 +170,7 @@ example/gpu_ntt/ntt_4step/preinstall:
 example/gpu_ntt/ntt_4step/clean: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/clean
 example/gpu_ntt/ntt_4step/clean: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_intt_examples.dir/clean
 example/gpu_ntt/ntt_4step/clean: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/clean
+example/gpu_ntt/ntt_4step/clean: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/clean
 .PHONY : example/gpu_ntt/ntt_4step/clean
 
 #=============================================================================
@@ -401,7 +403,7 @@ src/common/lib/CMakeFiles/common.dir/clean:
 src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/all: src/common/lib/CMakeFiles/common.dir/all
 	$(MAKE) $(MAKESILENT) -f src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/build.make src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/build.make src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=34,35,36 "Built target ntt"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=37,38,39 "Built target ntt"
 .PHONY : src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/all
 
 # Build rule for subdir invocation for target.
@@ -427,7 +429,7 @@ src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/clean:
 src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/all: src/common/lib/CMakeFiles/common.dir/all
 	$(MAKE) $(MAKESILENT) -f src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/build.make src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/build.make src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=37,38,39 "Built target ntt_4step"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=40,41,42 "Built target ntt_4step"
 .PHONY : src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/all
 
 # Build rule for subdir invocation for target.
@@ -539,7 +541,7 @@ example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/all: src/ntt/ntt
 example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/all: src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/all
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/depend
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=25,26,27 "Built target gpu_4step_ntt_examples"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=28,29,30 "Built target gpu_4step_ntt_examples"
 .PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_ntt_examples.dir/all
 
 # Build rule for subdir invocation for target.
@@ -595,7 +597,7 @@ example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/all: sr
 example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/all: src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/all
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/depend
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=22,23,24 "Built target gpu_4step_negative_ntt_examples"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=25,26,27 "Built target gpu_4step_negative_ntt_examples"
 .PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/all
 
 # Build rule for subdir invocation for target.
@@ -615,6 +617,34 @@ example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/clean:
 .PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_ntt_examples.dir/clean
 
 #=============================================================================
+# Target rules for target example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir
+
+# All Build rule for target.
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all: src/common/lib/CMakeFiles/common.dir/all
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all: src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/all
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all: src/ntt/ntt_4step/lib/CMakeFiles/ntt_4step.dir/all
+	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/depend
+	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=22,23,24 "Built target gpu_4step_negative_intt_examples"
+.PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all
+
+# Build rule for subdir invocation for target.
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles 12
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles 0
+.PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/rule
+
+# Convenience name for target.
+gpu_4step_negative_intt_examples: example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/rule
+.PHONY : gpu_4step_negative_intt_examples
+
+# clean rule for target.
+example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/clean:
+	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/build.make example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/clean
+.PHONY : example/gpu_ntt/ntt_4step/CMakeFiles/gpu_4step_negative_intt_examples.dir/clean
+
+#=============================================================================
 # Target rules for target example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir
 
 # All Build rule for target.
@@ -622,7 +652,7 @@ example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/all: src/common/
 example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/all: src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/all
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/build.make example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/depend
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/build.make example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=31,32,33 "Built target gpu_merge_ntt_examples"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=34,35,36 "Built target gpu_merge_ntt_examples"
 .PHONY : example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_ntt_examples.dir/all
 
 # Build rule for subdir invocation for target.
@@ -649,7 +679,7 @@ example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/all: src/common
 example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/all: src/ntt/ntt_merge/lib/CMakeFiles/ntt.dir/all
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/build.make example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/depend
 	$(MAKE) $(MAKESILENT) -f example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/build.make example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=28,29,30 "Built target gpu_merge_intt_examples"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/hxw/CUDA/4-step/GPU-NTT/build/CMakeFiles --progress-num=31,32,33 "Built target gpu_merge_intt_examples"
 .PHONY : example/gpu_ntt/ntt_merge/CMakeFiles/gpu_merge_intt_examples.dir/all
 
 # Build rule for subdir invocation for target.

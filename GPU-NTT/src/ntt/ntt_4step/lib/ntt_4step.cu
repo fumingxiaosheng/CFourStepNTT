@@ -2672,6 +2672,77 @@ __global__ void cyclic_inv_5(Data* polynomial_in, Data* polynomial_out,Root* n1_
         sharedmemorys[idx_x][idx_y + 24];
 }
 
+/*2024-9-22:*/
+__global__ void negative_inv_5(Data* polynomial_in, Data* polynomial_out,Root* n1_root_of_unity_table, Modulus* modulus, int index1, int index2, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y; //和batch_size相对应
+
+    __shared__ Data sharedmemorys[32][32 + 1]; //每一个block用于填满sharedmemorys
+
+    int q_index = block_y % mod_count; //moduls共用一个
+    Modulus q_thread = modulus[q_index];//q_thread代表的是模数
+
+    //把4096分成4段,每一段对应一个block,(block_x << 10)对应每个半区的开始,idx_x代表一个block中的线程数(256),因此，每一个线程需要load4个数进来
+
+    int divindex = block_y << n_power; //用于区分是第几个batch
+
+    // Load data from global & store to shared
+    
+    //每一个共享内存的一行,对应着在多项式中连续的32个系数
+    sharedmemorys[idx_x][idx_y] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + divindex];
+    sharedmemorys[idx_x][idx_y + 8] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + index2 + divindex];
+    sharedmemorys[idx_x][idx_y + 16] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 2) + divindex];
+    sharedmemorys[idx_x][idx_y + 24] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 3) + divindex];
+    __syncthreads();
+
+    int global_index1 = idx_x >> 4;
+    int global_index2 = idx_x % 16;
+
+    int t_ = 0;
+    int t = 1 << t_;
+    int in_shared_address = ((global_index2 >> t_) << t_) + global_index2;
+
+    GentlemanSandeUnit_(sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
+                       sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 4) + (global_index2 >> t_)], q_thread);
+    GentlemanSandeUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
+                       sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 4) + (global_index2 >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 3; i >=0; i--)
+    {
+        t = t << 1;
+        t_ += 1;
+
+        in_shared_address = ((global_index2 >> t_) << t_) + global_index2;
+        ;
+
+        GentlemanSandeUnit_(sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
+                           sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (global_index2 >> t_)], q_thread);
+        GentlemanSandeUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
+                           sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (global_index2 >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    //假设polynomial_out中的下标为(a,b),那么写入到polynomial_out中的位置为(block_x*32+a) + b * 32
+    //每个线程负责4个数的写入 //合并内存访问
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + divindex] =
+        sharedmemorys[idx_x][idx_y];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + index2 + divindex] =
+        sharedmemorys[idx_x][idx_y + 8];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 2) + divindex] =
+        sharedmemorys[idx_x][idx_y + 16];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 3) + divindex] =
+        sharedmemorys[idx_x][idx_y + 24];
+}
+
 /*2024-9-22*/
 __global__ void cyclic_inv_6(Data* polynomial_in, Data* polynomial_out,
                                       Root* n1_root_of_unity_table, Modulus* modulus, int index1,
@@ -2731,6 +2802,85 @@ __global__ void cyclic_inv_6(Data* polynomial_in, Data* polynomial_out,
         GentlemanSandeUnit_(sharedmemorys[idx_y + 8][in_shared_address],
                            sharedmemorys[idx_y + 8][in_shared_address + t],
                            n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    
+
+    //按列读取共享内存，按行（16个数据单元）存放到全局内存中
+    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+                   divindex] = sharedmemorys[global_index2][global_index1 + (idx_y << 1)]; //index1 =n2  index2 = n2+1 index3 = 1 << (n2+4)
+    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+                   index3 + divindex] =
+        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 16];
+    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+                   (index3 * 2) + divindex] =
+        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 32];
+    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+                   (index3 * 3) + divindex] =
+        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
+}
+
+/*2024-9-22*/
+__global__ void negative_inv_6(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[16][64 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    //int idx_index = idx_x + (idx_y << 5);//在一个block中的线程id
+    //int global_addresss = idx_index + (block_x << 10);//在n中的位置
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 4;
+    int global_index2 = idx_x % 16;
+
+    // Load data from global & store to shared
+    //以4行为单位从全局内存中拿出数据 -> 不存在存储体冲突的版本
+    sharedmemorys[global_index2][idx_y + (global_index1 << 4)] =
+        polynomial_in[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 8] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 32] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 40] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex];
+    __syncthreads();
+
+    int t_ = 0;
+    int t = 1 << t_;
+    int in_shared_address = ((idx_x >> t_) << t_) + idx_x;
+
+    GentlemanSandeUnit_(sharedmemorys[idx_y][in_shared_address],
+                       sharedmemorys[idx_y][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 5) + (idx_x >> t_)], q_thread);
+    GentlemanSandeUnit_(sharedmemorys[idx_y + 8][in_shared_address],
+                       sharedmemorys[idx_y + 8][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 5) + (idx_x >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 4; i >= 0; i--)
+    {
+        t = t << 1;
+        t_ += 1;
+
+        in_shared_address = ((idx_x >> t_) << t_) + idx_x;
+
+        GentlemanSandeUnit_(sharedmemorys[idx_y][in_shared_address],
+                           sharedmemorys[idx_y][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (idx_x >> t_)], q_thread);
+        GentlemanSandeUnit_(sharedmemorys[idx_y + 8][in_shared_address],
+                           sharedmemorys[idx_y + 8][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (idx_x >> t_)], q_thread);
         __syncthreads();
     }
     __syncthreads();
@@ -2823,6 +2973,78 @@ __global__ void cyclic_inv_7(Data* polynomial_in, Data* polynomial_out,
         
 }
 
+/*2024-9-22:*/
+__global__ void negative_inv_7(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[8][128 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    //int idx_index = idx_x + (idx_y << 5);//每个线程在线程块中的编号
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 3;
+    int global_index2 = idx_x % 8;
+
+    //在避免存储体冲突的情况下,进行数据的存取
+    sharedmemorys[global_index2][(global_index1 << 3) + idx_y] =
+        polynomial_in[(((global_index1 << 3) + idx_y ) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 32] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 32) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 64] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 64) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 96] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 96) << index1) + global_index2 + (block_x << 3) + divindex];
+    __syncthreads();
+
+    int shr_address = idx_x + ((idx_y % 2) << 5);
+    int shr_in = idx_y >> 1;
+
+    int t_ = 0;
+    int t = 1 << t_;
+    int in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+    GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
+                       sharedmemorys[shr_in][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 6) + (shr_address >> t_)], q_thread);
+    GentlemanSandeUnit_(sharedmemorys[shr_in + 4][in_shared_address],
+                       sharedmemorys[shr_in + 4][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 6) + (shr_address >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 5; i >=0; i--)
+    {
+        t = t << 1;
+        t_ += 1;
+
+        in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+        GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
+                           sharedmemorys[shr_in][in_shared_address + t],
+                           n1_root_of_unity_table[(1<<i) + (shr_address >> t_)], q_thread);
+        GentlemanSandeUnit_(sharedmemorys[shr_in + 4][in_shared_address],
+                           sharedmemorys[shr_in + 4][in_shared_address + t],
+                           n1_root_of_unity_table[(1<<i) + (shr_address >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    //转置着输入到全局内存中
+    polynomial_out[(((global_index1 << 3) + idx_y ) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[global_index2][(global_index1 << 3) + idx_y];
+    polynomial_out[(((global_index1 << 3) + idx_y + 32) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 32];
+    polynomial_out[(((global_index1 << 3) + idx_y + 64) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 64];
+    polynomial_out[(((global_index1 << 3) + idx_y + 96) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[global_index2][(global_index1 << 3) + idx_y + 96];
+        
+}
+
 /*2024-9-22:
 */
 __global__ void cyclic_inv_8(Data* polynomial_in, Data* polynomial_out,
@@ -2878,6 +3100,70 @@ __global__ void cyclic_inv_8(Data* polynomial_in, Data* polynomial_out,
         GentlemanSandeUnit_(sharedmemorys[shr_in + 2][in_shared_address],
                            sharedmemorys[shr_in + 2][in_shared_address + t],
                            n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192];
+}
+
+/*2024-9-22:*/
+__global__ void negative_inv_8(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[4][256 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 2;
+    int global_index2 = idx_x % 4;
+
+    sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192) << index1) + (block_x << 2) + global_index2 + divindex];
+    __syncthreads();
+
+    int shr_address = idx_x + ((idx_y % 4) << 5);
+    int shr_in = idx_y >> 2;
+
+    int t_ = 0;
+    int t = 1 << t_;
+    int in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+    GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
+                       sharedmemorys[shr_in][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 7) + (shr_address >> t_)], q_thread);
+    GentlemanSandeUnit_(sharedmemorys[shr_in + 2][in_shared_address],
+                       sharedmemorys[shr_in + 2][in_shared_address + t],
+                       n1_root_of_unity_table[(1 << 7) + (shr_address >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 6; i >=0; i--)
+    {
+        t = t << 1;
+        t_ += 1;
+
+        in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+        GentlemanSandeUnit_(sharedmemorys[shr_in][in_shared_address],
+                           sharedmemorys[shr_in][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (shr_address >> t_)], q_thread);
+        GentlemanSandeUnit_(sharedmemorys[shr_in + 2][in_shared_address],
+                           sharedmemorys[shr_in + 2][in_shared_address + t],
+                           n1_root_of_unity_table[(1 << i) + (shr_address >> t_)], q_thread);
         __syncthreads();
     }
     __syncthreads();
@@ -5982,6 +6268,215 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
             break;
 
         case INVERSE:
+            switch(cfg.n_power){
+                case 12:
+                    printf("negative compute inv 12\n");
+                    FourStepPartialInverseCore<<<dim3(32, batch_size), 64>>>(
+                        device_in,device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 7, 6,
+                        cfg.mod_inverse, 12, mod_count); //用这个也是会出现问题的
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(4, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 7, 1024, 12,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+
+                case 13:
+                    //5 + 8
+                    printf("negative compute inv 13\n");
+                    FourStepPartialInverseCore<<<dim3(32, batch_size), 128>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 8, 7,
+                        cfg.mod_inverse, 13, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(8, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 8, 2048, 13,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+
+                case 14:
+                    //5 + 9
+                    printf("negative compute inv 14\n");
+                    FourStepPartialInverseCore<<<dim3(32, batch_size), 256>>>(
+                        device_in,device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
+                        cfg.mod_inverse, 14, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(16, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 9, 4096, 14,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+
+                case 15:
+                    //6 + 9
+                    printf("negative compute inv 15\n");
+                    FourStepPartialInverseCore<<<dim3(64, batch_size), 256>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
+                        cfg.mod_inverse, 15, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_6<<<dim3(32, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 16:
+                    //7 + 9
+                    printf("negative compute inv 16\n");
+                    FourStepPartialInverseCore<<<dim3(128, batch_size), 256>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
+                        cfg.mod_inverse, 16, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_7<<<dim3(64, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 17:
+                    //5 + 12
+                    printf("negative compute inv 17\n");
+                    FourStepPartialInverseCore1<<<dim3(8, 32, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 12, 17,
+                        mod_count); //9层
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(8, 32, batch_size), dim3(64, 4)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 12, 9, 6, 2048, 9, 2,
+                        cfg.mod_inverse, 17, mod_count); //3层
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(128, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 12, 32768, 17,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 18:
+                    // 5+ 13
+                    printf("negative compute inv 18\n");
+                    FourStepPartialInverseCore1<<<dim3(16, 32, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 13, 18,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(16, 32, batch_size), dim3(32, 8)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table,  negative_W_root_of_unity_table, modulus, 13, 9, 5, 4096, 9, 3,
+                        cfg.mod_inverse, 18, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(256, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 13, 65536, 18,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    
+                    break;
+                case 19:
+                    //5 + 14
+                    printf("negative compute inv 19\n");
+                    FourStepPartialInverseCore1<<<dim3(32, 32, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 14, 19,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(32, 32, batch_size), dim3(16, 16)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 14, 9, 4, 8192, 9, 4,
+                        cfg.mod_inverse, 19, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(512, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 14, 131072, 19,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 20:
+                    //5 + 15
+                    printf("negative compute inv 20\n");
+                    FourStepPartialInverseCore1<<<dim3(64, 32, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 20,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(64, 32, batch_size), dim3(8, 32)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 9, 3, 16384, 9, 5,
+                        cfg.mod_inverse, 20, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_5<<<dim3(1024, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 15, 262144, 20,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 21:
+                    //5 + 16
+                    printf("negative compute inv 21\n");
+                    FourStepPartialInverseCore1<<<dim3(64, 64, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 21,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(64, 64, batch_size), dim3(8, 32)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table,modulus, 15, 9, 3, 16384, 9, 5,
+                        cfg.mod_inverse, 21, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_6<<<dim3(2048, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 15, 16, 524288, 21,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 22:
+                    //7 + 15
+                    printf("negative compute inv 22\n");
+                    FourStepPartialInverseCore1<<<dim3(64, 128, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 22,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(64, 128, batch_size), dim3(8, 32)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 9, 3, 16384, 9, 5,
+                        cfg.mod_inverse, 22, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_7<<<dim3(4096, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 15, 17, 1048576, 22,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 23:
+                    //7 + 16
+                    printf("negative compute inv 23\n");
+                    FourStepPartialInverseCore1<<<dim3(128, 128, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 23,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(128, 128, batch_size), dim3(4, 64)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 9, 2, 32768, 9, 6,
+                        cfg.mod_inverse, 23, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_7<<<dim3(8192, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 16, 18, 2097152, 23,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+                case 24:
+                    printf("negative compute inv 24\n");
+                    FourStepPartialInverseCore1<<<dim3(128, 256, batch_size), 256>>>(
+                        device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 24,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialInverseCore2<<<dim3(128, 256, batch_size), dim3(4, 64)>>>(
+                        device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 9, 2, 32768, 9, 6,
+                        cfg.mod_inverse, 24, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    negative_inv_8<<<dim3(16384, batch_size), dim3(32, 8)>>>(
+                        device_out, device_in, negative_2n1_root_of_unity_table, modulus, 16, 19, 4194304, 24,
+                        mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    break;
+
+                default:
+                    std::cout << "This ring size is not supported!" << std::endl;
+                    break;
+            }
             break;
         
         default:
