@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
 
         std::uniform_int_distribution<unsigned long long> dis2(0, number);
 
-        Modulus modulus(number);
+        Modulus modulus(number); //使用随机生成的一个数作为模数
 
         // Random data generation for polynomials
         vector<vector<Data>> input1(BATCH);
@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
             }
         }
 
+        //传输表1
         vector<Root_> forward_root_table1;
 #ifdef PLANTARD_64
         for(int i = 0; i<(parameters.n1 >> 1); i++)
@@ -89,7 +90,7 @@ int main(int argc, char* argv[])
         }
         Ninverse n_inv = dis2(gen);
 #endif
-
+        //传输表2
         vector<Root_> forward_root_table2;
 #ifdef PLANTARD_64
         for(int i = 0; i<(parameters.n2 >> 1); i++)
@@ -105,6 +106,7 @@ int main(int argc, char* argv[])
         }
 #endif
 
+        //传输补偿因子表
         vector<Root_> W_root_table;
 #ifdef PLANTARD_64
         for(int i = 0; i<parameters.n; i++)
@@ -120,6 +122,7 @@ int main(int argc, char* argv[])
         }
 #endif
 
+        //模数、补偿因子、旋转因子等都是随机生成的，下面对其进行传输
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         Data* Input_Datas;
