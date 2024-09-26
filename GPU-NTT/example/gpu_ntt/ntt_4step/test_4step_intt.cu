@@ -30,10 +30,13 @@ int main(int argc, char* argv[])
     }
 
 #ifdef BARRETT_64
+    printf("barret 64\n");
     ModularReductionType modular_reduction_type = ModularReductionType::BARRET;
 #elif defined(GOLDILOCKS_64)
+    printf("GOLDILOCKS 64\n");
     ModularReductionType modular_reduction_type = ModularReductionType::GOLDILOCK;
 #elif defined(PLANTARD_64)
+    printf("PLANTARD 64\n")
     ModularReductionType modular_reduction_type = ModularReductionType::PLANTARD;
 #else
 #error "Please define reduction type."

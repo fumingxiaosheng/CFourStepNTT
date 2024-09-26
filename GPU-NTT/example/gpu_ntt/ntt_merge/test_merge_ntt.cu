@@ -25,8 +25,8 @@ int main(int argc, char* argv[])
 
     if(argc < 3)
     {
-        LOGN = 12;
-        BATCH = 1;
+        LOGN = 16;
+        BATCH = 16;
     }
     else
     {
