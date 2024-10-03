@@ -19,6 +19,13 @@ int bitreverse(int index, int n_power)
     return res_1;
 }
 
+float timer(cudaEvent_t start, cudaEvent_t stop){
+    float elapsedTime; 
+    cudaEventElapsedTime(&elapsedTime, start, stop );
+    return elapsedTime*1000; 
+}
+
+
 NTTParameters::NTTParameters(int LOGN,
                              ModularReductionType modular_reduction_type,
                              ReductionPolynomial poly_reduce_type)
@@ -568,10 +575,12 @@ std::vector<int>  NTTParameters4Step::matrix_dimention() {
             //shape = {256,256};
             return shape;
 		case 17:
-            shape = { 32, 4096 };
+            shape = {256 , 512};
+            //shape = { 32, 4096 }; // for merge
             return shape;
 		case 18:
             shape = { 32, 8192 };
+            //shape = {64 , 4096};
             return shape;
 		case 19:
             shape = { 32, 16384 };

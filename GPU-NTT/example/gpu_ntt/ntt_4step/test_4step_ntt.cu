@@ -19,14 +19,14 @@ extern __constant__ Root Csitable64[32];
 
 int main(int argc, char* argv[])
 {
-    printf("test_4_step_ntt hxw12\n");
+    //printf("test_4_step_ntt hxw12\n");
     
-    CudaDevice();
+    //CudaDevice();
 
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 16;
+        LOGN = 18;
         BATCH = 16;
     }
     else
@@ -87,12 +87,12 @@ int main(int argc, char* argv[])
     Data* Output_Datas;
     THROW_IF_CUDA_ERROR(cudaMalloc(&Output_Datas, BATCH * parameters.n * sizeof(Data)));
 
-    Data* Input_Datas1;
+    // Data* Input_Datas1;
 
-    THROW_IF_CUDA_ERROR(cudaMalloc(&Input_Datas1, BATCH * parameters.n * sizeof(Data)));
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&Input_Datas1, BATCH * parameters.n * sizeof(Data)));
 
-    Data* Output_Datas1;
-    THROW_IF_CUDA_ERROR(cudaMalloc(&Output_Datas1, BATCH * parameters.n * sizeof(Data)));
+    // Data* Output_Datas1;
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&Output_Datas1, BATCH * parameters.n * sizeof(Data)));
     for(int j = 0; j < BATCH; j++)
     {
         //input1[j].data()代表指向vector的第一个数据的指针
@@ -102,8 +102,8 @@ int main(int argc, char* argv[])
         THROW_IF_CUDA_ERROR(cudaMemcpy(Output_Datas + (parameters.n * j), input1[j].data(),
                                        parameters.n * sizeof(Data), cudaMemcpyHostToDevice));
 
-        THROW_IF_CUDA_ERROR(cudaMemcpy(Input_Datas1 + (parameters.n * j), input1[j].data(),
-                                       parameters.n * sizeof(Data), cudaMemcpyHostToDevice));
+        // THROW_IF_CUDA_ERROR(cudaMemcpy(Input_Datas1 + (parameters.n * j), input1[j].data(),
+        //                                parameters.n * sizeof(Data), cudaMemcpyHostToDevice));
     }
 
     //////////////////////////////////////////////////////////////////////////
@@ -129,36 +129,36 @@ int main(int argc, char* argv[])
                                    parameters.n * sizeof(Root), cudaMemcpyHostToDevice));
 
     //新增加4096的传输
-    vector<Root_> psitable64 =
-        parameters.gpu_root_of_unity_table_generator(parameters.n64_root_of_unity_table);//ROOT_是根据约减类型而定的数据类型，注意在param宏宏,root是data类型的
-    Root* psitable_device64; //Root是根据具体的约减类型确定的,其和Root_是相同的
+    // vector<Root_> psitable64 =
+    //     parameters.gpu_root_of_unity_table_generator(parameters.n64_root_of_unity_table);//ROOT_是根据约减类型而定的数据类型，注意在param宏宏,root是data类型的
+    // Root* psitable_device64; //Root是根据具体的约减类型确定的,其和Root_是相同的
 
-    THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device64, (UNITY_SIZE1 >> 1) * sizeof(Root)));
-    THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device64, psitable64.data(),
-                                   (UNITY_SIZE1 >> 1) * sizeof(Root), cudaMemcpyHostToDevice));
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device64, (UNITY_SIZE1 >> 1) * sizeof(Root)));
+    // THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device64, psitable64.data(),
+    //                                (UNITY_SIZE1 >> 1) * sizeof(Root), cudaMemcpyHostToDevice));
 
-    Root* n64_W_Table_device;
-    THROW_IF_CUDA_ERROR(cudaMalloc(&n64_W_Table_device, UNITY_SIZE1 * UNITY_SIZE2 * sizeof(Root)));
-    THROW_IF_CUDA_ERROR(cudaMemcpy(n64_W_Table_device, parameters.n64_W_root_of_unity_table.data(),
-                                   UNITY_SIZE1 * UNITY_SIZE2 * sizeof(Root), cudaMemcpyHostToDevice));
+    // Root* n64_W_Table_device;
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&n64_W_Table_device, UNITY_SIZE1 * UNITY_SIZE2 * sizeof(Root)));
+    // THROW_IF_CUDA_ERROR(cudaMemcpy(n64_W_Table_device, parameters.n64_W_root_of_unity_table.data(),
+    //                                UNITY_SIZE1 * UNITY_SIZE2 * sizeof(Root), cudaMemcpyHostToDevice));
 
 
     //新增1024的传输
-    vector<Root_> psitable32 =
-        parameters.gpu_root_of_unity_table_generator(parameters.n32_root_of_unity_table);
-    Root* psitable_device32;
+    // vector<Root_> psitable32 =
+    //     parameters.gpu_root_of_unity_table_generator(parameters.n32_root_of_unity_table);
+    // Root* psitable_device32;
 
-    THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device32, 16 * sizeof(Root)));
-    THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device32, psitable32.data(), 16 * sizeof(Root), cudaMemcpyHostToDevice));
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&psitable_device32, 16 * sizeof(Root)));
+    // THROW_IF_CUDA_ERROR(cudaMemcpy(psitable_device32, psitable32.data(), 16 * sizeof(Root), cudaMemcpyHostToDevice));
 
-    Root* n32_W_Table_device;
-    THROW_IF_CUDA_ERROR(cudaMalloc(&n32_W_Table_device, 1024 * sizeof(Root)));
-    THROW_IF_CUDA_ERROR(cudaMemcpy(n32_W_Table_device, parameters.n32_W_root_of_unity_table.data(), 1024 * sizeof(Root), cudaMemcpyHostToDevice));
+    // Root* n32_W_Table_device;
+    // THROW_IF_CUDA_ERROR(cudaMalloc(&n32_W_Table_device, 1024 * sizeof(Root)));
+    // THROW_IF_CUDA_ERROR(cudaMemcpy(n32_W_Table_device, parameters.n32_W_root_of_unity_table.data(), 1024 * sizeof(Root), cudaMemcpyHostToDevice));
 
     //////////////////////////////////////////////////////////////////////////
 
     
-    THROW_IF_CUDA_ERROR(cudaMemcpyToSymbol(Csitable64, psitable64.data(), 32 * sizeof(Root))); //将64维的旋转因子拷贝到常量内存中
+    //THROW_IF_CUDA_ERROR(cudaMemcpyToSymbol(Csitable64, psitable64.data(), 32 * sizeof(Root))); //将64维的旋转因子拷贝到常量内存中
 
     //////////////////////////////////////////////////////////////////////////
 
@@ -186,8 +186,12 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////////////////////////////////
     //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
 
-
+    cudaEvent_t start, stop;
+    BEFORE_SPEED
     GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1);
+    AFTER_SPEED
+    float tot = timer(start,stop);
+    DESTORY_SPEED
 
     //根据自己定义的划分进行求值
     /*if(parameters.n == (1 << 12)){
@@ -244,7 +248,7 @@ int main(int argc, char* argv[])
 
         if((i == (BATCH - 1)) && check)
         {
-            cout << "origaninal All Correct." << endl;
+            //cout << "origaninal All Correct." << endl;
         }
     }
 
@@ -265,5 +269,7 @@ int main(int argc, char* argv[])
         }
     }*/
 
+
+    printf("%f\n",tot);
     return EXIT_SUCCESS;
 }

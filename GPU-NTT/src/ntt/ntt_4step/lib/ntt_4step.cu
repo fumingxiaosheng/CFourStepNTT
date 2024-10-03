@@ -514,17 +514,22 @@ __global__ void cyclic_6(Data* polynomial_in, Data* polynomial_out,
     
 
     //按列读取共享内存，按行（16个数据单元）存放到全局内存中
-    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
-                   divindex] = sharedmemorys[global_index2][global_index1 + (idx_y << 1)]; //index1 =n2  index2 = n2+1 index3 = 1 << (n2+4)
-    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
-                   index3 + divindex] =
-        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 16];
-    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
-                   (index3 * 2) + divindex] =
-        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 32];
-    polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
-                   (index3 * 3) + divindex] =
-        sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                divindex] = sharedmemorys[global_index2][global_index1 + (idx_y << 1)]; //index1 =n2  index2 = n2+1 index3 = 1 << (n2+4)
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                index3 + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 16];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                (index3 * 2) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 32];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                (index3 * 3) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
+
+    polynomial_in[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4)];
+    polynomial_in[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 8];
+    polynomial_in[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 32];
+    polynomial_in[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 40];
 }
 
 
@@ -1181,26 +1186,18 @@ __global__ void FourStepForwardCoreT4(Data* polynomial_in, Data* polynomial_out,
         sharedmemorys[global_index2][global_index1 + (idx_y << 3) + 192];
 }
 
-/*2024-8-8:
-
-线程组织形式:dim3(8, 32, batch_size), dim3(64, 4)
-完成n1个n2维NTT操作中的前loop层
-
-参数:polynomial_in:n1*n2维的多项式矩阵
-    loc2:代表的是首次读取时的间隔的长度
 
 
-[例子:32个4096操作]
-12, 6, 2048, 3, 17, mod_count
-线程组织结构:
-dim3(8, 32, batch_size), dim3(64, 4)
+/*2024-10-3:
+线程组织形式<<<dim3((1 << n2)/512,1 << n1),,dim3(256/(1<<(层数-1)),1<<(层数-1))>>>
+参数：
+    small_power:n2
+    n_power:n
+    loc2:第一次读取时的间隔 1<< (n2-1)
+    loop:需要完成的循环次数
+    loc1:log(256/(1<<(层数-1)) = blockIdx.x)
 
-dim3(n2/512,n1)
-[例子:] 32个2^{15}个NTT操作
-FourStepPartialForwardCore1<<<dim3(64, 32, batch_size), dim3(8, 32)>>>(
-                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 3,
-                        16384, 6, 20, mod_count);
-
+    
 */
 __global__ void FourStepPartialForwardCore1(Data* polynomial_in, Root* n2_root_of_unity_table,
                                             Root* w_root_of_unity_table, Modulus* modulus,
@@ -1261,6 +1258,26 @@ __global__ void FourStepPartialForwardCore1(Data* polynomial_in, Root* n2_root_o
     polynomial_in[load_store_address + divindex] = sharedmemorys[shared_addresss];
     polynomial_in[load_store_address + loc2 + divindex] = sharedmemorys[shared_addresss + 256];
 }
+/*2024-8-8:
+
+线程组织形式:dim3(8, 32, batch_size), dim3(64, 4)
+完成n1个n2维NTT操作中的前loop层
+
+参数:polynomial_in:n1*n2维的多项式矩阵
+    loc2:代表的是首次读取时的间隔的长度
+
+
+[例子:32个4096操作]
+12, 6, 2048, 3, 17, mod_count
+线程组织结构:
+dim3(8, 32, batch_size), dim3(64, 4)
+
+dim3(n2/512,n1)
+[例子:] 32个2^{15}个NTT操作
+FourStepPartialForwardCore1<<<dim3(64, 32, batch_size), dim3(8, 32)>>>(
+                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 3,
+                        16384, 6, 20, mod_count);
+*/
 
 __global__ void FourStepPartialForwardCore1(Data* polynomial_in, Root* n2_root_of_unity_table,
                                             Root* w_root_of_unity_table, Modulus modulus,
@@ -4359,12 +4376,12 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
             {
                 case 12:
                     //n1=2^5,n2=2^7
-                    //printf("hi");
+                    ////printf("hi");
                     // FourStepForwardCoreT1<<<dim3(4, batch_size), dim3(32, 8)>>>(
                     //    device_in, device_out, n1_root_of_unity_table, modulus, 7, 1024, 12,
                     //    mod_count); //n2个n1维的NTT
-                    // printf("using cyclic 5\n");
-                    printf("compute 12\n");
+                    // //printf("using cyclic 5\n");
+                    //printf("compute 12\n");
                     cyclic_5<<<dim3(4, batch_size), dim3(32, 8)>>>(
                        device_in, device_out, n1_root_of_unity_table, modulus, 7, 1024, 12,
                         mod_count); //n2个n1维的NTT
@@ -4376,7 +4393,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 13:
                     // 5 + 8
-                    printf("compute 13\n");
+                    //printf("compute 13\n");
                     cyclic_5<<<dim3(8, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 8, 2048, 13,
                         mod_count);
@@ -4388,7 +4405,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 14:
                     // 5 + 9
-                    printf("compute 14\n");
+                    //printf("compute 14\n");
                     cyclic_5<<<dim3(16, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 9, 4096, 14,
                         mod_count);
@@ -4410,7 +4427,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
                     //hxw 5+10
-                    // printf("compute 15\n");
+                    // //printf("compute 15\n");
                     // cyclic_5<<<dim3(32, batch_size), dim3(32, 8)>>>(
                     //     device_in, device_out, n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
@@ -4418,7 +4435,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
                     //hxw 6+9
-                    printf("compute 15 new\n");
+                    //printf("compute 15 new\n");
                     cyclic_6<<<dim3(32, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
                         mod_count);
@@ -4433,7 +4450,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     // FourStepForwardCoreT3<<<dim3(64, batch_size), dim3(32, 8)>>>(
                     //     device_in, device_out, n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
                     //     mod_count);
-                    printf("compute new 16\n");
+                    //printf("compute new 16\n");
                     cyclic_7<<<dim3(64, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
                         mod_count);
@@ -4445,30 +4462,35 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 17:
                     //2^5 * 2^12
-                    printf("compute 17\n");
+                    //printf("compute 17\n");
                     // FourStepForwardCoreT1<<<dim3(128, batch_size), dim3(32, 8)>>>(
                     //     device_in, device_out, n1_root_of_unity_table, modulus, 12, 32768, 17,
                     //     mod_count);//device_in:n2*n1维 device_out:n1*n2维
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
-                    cyclic_5<<<dim3(128, batch_size), dim3(32, 8)>>>(
-                        device_in, device_out, n1_root_of_unity_table, modulus, 12, 32768, 17,
-                        mod_count);//device_in:n2*n1维 device_out:n1*n2维
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // cyclic_5<<<dim3(128, batch_size), dim3(32, 8)>>>(
+                    //     device_in, device_out, n1_root_of_unity_table, modulus, 12, 32768, 17,
+                    //     mod_count);//device_in:n2*n1维 device_out:n1*n2维
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
-                    //下面两个kernel完成13层的NTT计算
-                    FourStepPartialForwardCore1<<<dim3(8, 32, batch_size), dim3(64, 4)>>>(
-                        device_out, n2_root_of_unity_table, W_root_of_unity_table,modulus, 12, 6,
-                        2048, 3, 17, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    FourStepPartialForwardCore2<<<dim3(8, 32, batch_size), 256>>>(
-                        device_out, n2_root_of_unity_table, modulus, 12, 17, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());//做9层NTT
+                    // //下面两个kernel完成13层的NTT计算
+                    // FourStepPartialForwardCore1<<<dim3(8, 32, batch_size), dim3(64, 4)>>>(
+                    //     device_out, n2_root_of_unity_table, W_root_of_unity_table,modulus, 12, 6,
+                    //     2048, 3, 17, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore2<<<dim3(8, 32, batch_size), 256>>>(
+                    //     device_out, n2_root_of_unity_table, modulus, 12, 17, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());//做9层NTT
 
+                    //8+9
+                    cyclic_8<<<dim3(128, batch_size), dim3(32, 8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 9, 12, 32768, 17, mod_count);//device_in:n2*n1维 device_out:n1*n2维
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    FourStepPartialForwardCore<<<dim3(256, batch_size), 256>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3, 17, mod_count);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 18:
                     // 5 + 13
-                    printf("compute 18\n");
+                    ////printf("compute 18\n");
                     cyclic_5<<<dim3(256, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 13, 65536, 18,
                         mod_count);
@@ -4482,10 +4504,19 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     FourStepPartialForwardCore2<<<dim3(16, 32, batch_size), 256>>>(
                         device_out, n2_root_of_unity_table ,modulus, 13, 18, mod_count);//做9层NTT , W_root_of_unity_table
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+
+                    // 6 + 12
+                    // cyclic_6<<<dim3(256, batch_size), dim3(32, 8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 12, 13, 65536, 18, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore1<<<dim3(8, 64, batch_size), dim3(64, 4)>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 12, 6, 2048, 3, 18, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore2<<<dim3(8, 64, batch_size), 256>>>( device_out, n2_root_of_unity_table ,modulus, 12, 18, mod_count);//做9层NTT , W_root_of_unity_table
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 19:
                     // 5 + 14
-                    printf("compute 19\n");
+                    //printf("compute 19\n");
                     cyclic_5<<<dim3(512, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 14, 131072, 19,
                         mod_count);
@@ -4502,7 +4533,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 20:
                     // 5 + 15
-                    printf("compute 20\n");
+                    //printf("compute 20\n");
                     cyclic_5<<<dim3(1024, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 262144, 20,
                         mod_count);
@@ -4517,7 +4548,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 21:
                     // 6 + 15
-                    printf("compute 21\n");
+                    //printf("compute 21\n");
                     cyclic_6<<<dim3(2048, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 16, 524288, 21,
                         mod_count);
@@ -4532,7 +4563,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 22:
                     // 7 + 15
-                    printf("compute 22\n");
+                    //printf("compute 22\n");
                     cyclic_7<<<dim3(4096, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 17, 1048576, 22,
                         mod_count);
@@ -4546,7 +4577,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 23:
-                    printf("compute 23\n");
+                    //printf("compute 23\n");
                     // 7 + 16
                     cyclic_7<<<dim3(8192, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 16, 18, 2097152, 23,
@@ -4562,7 +4593,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 24:
                     // 8 + 16
-                    printf("compute 24 new\n");
+                    //printf("compute 24 new\n");
                     cyclic_8<<<dim3(16384, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 16, 19, 4194304, 24,
                         mod_count);
@@ -4587,7 +4618,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
             {
                 case 12:
                     // 5 + 7
-                    printf("compute inv 12\n");
+                    //printf("compute inv 12\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 64>>>(
                         device_in,device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 7, 6,
                         cfg.mod_inverse, 12, mod_count); //用这个也是会出现问题的
@@ -4600,7 +4631,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 13:
                     //5 + 8
-                    printf("compute inv 13\n");
+                    //printf("compute inv 13\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 128>>>(
                         device_in, device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7,
                         cfg.mod_inverse, 13, mod_count);
@@ -4613,7 +4644,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 14:
                     //5 + 9
-                    printf("compute inv 14\n");
+                    //printf("compute inv 14\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 256>>>(
                         device_in,device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 14, mod_count);
@@ -4626,7 +4657,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 15:
                     //6 + 9
-                    printf("compute inv 15\n");
+                    //printf("compute inv 15\n");
                     FourStepPartialInverseCore<<<dim3(64, batch_size), 256>>>(
                         device_in, device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 15, mod_count);
@@ -4639,7 +4670,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 16:
                     //7 + 9
-                    printf("compute inv 16\n");
+                    //printf("compute inv 16\n");
                     FourStepPartialInverseCore<<<dim3(128, batch_size), 256>>>(
                         device_in, device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 16, mod_count);
@@ -4652,7 +4683,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 17:
                     //5 + 12
-                    printf("compute inv 17\n");
+                    //printf("compute inv 17\n");
                     FourStepPartialInverseCore1<<<dim3(8, 32, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 12, 17,
                         mod_count); //9层
@@ -4669,7 +4700,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 18:
                     // 5+ 13
-                    printf("compute inv 18\n");
+                    //printf("compute inv 18\n");
                     FourStepPartialInverseCore1<<<dim3(16, 32, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 13, 18,
                         mod_count);
@@ -4687,7 +4718,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 19:
                     //5 + 14
-                    printf("compute inv 19\n");
+                    //printf("compute inv 19\n");
                     FourStepPartialInverseCore1<<<dim3(32, 32, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 14, 19,
                         mod_count);
@@ -4704,7 +4735,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 20:
                     //5 + 15
-                    printf("compute inv 20\n");
+                    //printf("compute inv 20\n");
                     FourStepPartialInverseCore1<<<dim3(64, 32, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 20,
                         mod_count);
@@ -4721,7 +4752,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 21:
                     //5 + 16
-                    printf("compute inv 21\n");
+                    //printf("compute inv 21\n");
                     FourStepPartialInverseCore1<<<dim3(64, 64, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 21,
                         mod_count);
@@ -4738,7 +4769,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 22:
                     //7 + 15
-                    printf("compute inv 22\n");
+                    //printf("compute inv 22\n");
                     FourStepPartialInverseCore1<<<dim3(64, 128, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 22,
                         mod_count);
@@ -4755,7 +4786,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     break;
                 case 23:
                     //7 + 16
-                    printf("compute inv 23\n");
+                    //printf("compute inv 23\n");
                     FourStepPartialInverseCore1<<<dim3(128, 128, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 16, 23,
                         mod_count);
@@ -4771,7 +4802,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 24:
-                    printf("compute inv 24\n");
+                    //printf("compute inv 24\n");
                     FourStepPartialInverseCore1<<<dim3(128, 256, batch_size), 256>>>(
                         device_in, n2_root_of_unity_table, W_root_of_unity_table, modulus, 16, 24,
                         mod_count);
@@ -6141,7 +6172,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
             switch(cfg.n_power){
                 case 12:
                     //5+7
-                    printf("compute 12\n");
+                    //printf("compute 12\n");
                     negative_5<<<dim3(4, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 7, 1024, 12, mod_count); //n2个n1维的NTT
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore<<<dim3(32, batch_size), 64>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 7, 6, 1,12, mod_count);//n1个n2维的NTT ,device_out为n1*n2维的矩阵
@@ -6149,14 +6180,14 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 
                 case 13:
-                    printf("compute 13\n");
+                    //printf("compute 13\n");
                     negative_5<<<dim3(8, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 8, 2048, 13,mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore<<<dim3(32, batch_size), 128>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 8, 7, 2, 13, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 14:
-                    printf("compute 14\n");
+                    //printf("compute 14\n");
                     negative_5<<<dim3(16, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 4096, 14, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 14,mod_count);
@@ -6164,7 +6195,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
 
                 case 15:
-                    printf("compute 15\n");
+                    //printf("compute 15\n");
                     // negative_5<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 10, 8192, 15, mod_count);
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
                     // //32个1024维NTT
@@ -6179,7 +6210,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 17:
                     //5 + 12
-                    printf("compute 17\n");
+                    //printf("compute 17\n");
                     negative_5<<<dim3(128, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 12, 32768, 17,mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
 
@@ -6191,7 +6222,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 18:
                     // 5 + 13
-                    printf("compute 18\n");
+                    //printf("compute 18\n");
                     negative_5<<<dim3(256, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 13, 65536, 18, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
 
@@ -6203,7 +6234,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 19:
                     // 5 + 14
-                    printf("compute 19\n");
+                    //printf("compute 19\n");
                     negative_5<<<dim3(512, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 14, 131072, 19, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
 
@@ -6216,7 +6247,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                 
                 case 20:
                     //5 + 15
-                    printf("compute 20\n");
+                    //printf("compute 20\n");
                     negative_5<<<dim3(1024, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 15, 262144, 20, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 32, batch_size), dim3(8, 32)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 3, 16384, 6, 20, mod_count);
@@ -6227,7 +6258,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 21:
                     // 6 + 15
-                    printf("compute 21\n");
+                    //printf("compute 21\n");
                     negative_6<<<dim3(2048, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 15, 16, 524288, 21, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 64, batch_size), dim3(8, 32)>>>( device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 3, 16384, 6, 21, mod_count);
@@ -6238,7 +6269,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 22:
                     // 7 + 15
-                    printf("compute 22\n");
+                    //printf("compute 22\n");
                     negative_7<<<dim3(4096, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 15, 17, 1048576, 22, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 128, batch_size), dim3(8, 32)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 3, 16384, 6, 22, mod_count);
@@ -6249,7 +6280,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 23:
                     // 7 + 16
-                    printf("compute 23\n");
+                    //printf("compute 23\n");
                     negative_7<<<dim3(8192, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 16, 18, 2097152, 23, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(128, 128, batch_size), dim3(4, 64)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 2, 32768, 7, 23, mod_count);
@@ -6260,7 +6291,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 24:
                     //8 + 16
-                    printf("compute 24\n");
+                    //printf("compute 24\n");
                     negative_8<<<dim3(16384, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 16, 19, 4194304, 24, mod_count);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(128, 256, batch_size), dim3(4, 64)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 2, 32768, 7, 24, mod_count);
@@ -6274,7 +6305,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
         case INVERSE:
             switch(cfg.n_power){
                 case 12:
-                    printf("negative compute inv 12\n");
+                    //printf("negative compute inv 12\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 64>>>(
                         device_in,device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 7, 6,
                         cfg.mod_inverse, 12, mod_count); //用这个也是会出现问题的
@@ -6288,7 +6319,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 13:
                     //5 + 8
-                    printf("negative compute inv 13\n");
+                    //printf("negative compute inv 13\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 128>>>(
                         device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 8, 7,
                         cfg.mod_inverse, 13, mod_count);
@@ -6302,7 +6333,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 14:
                     //5 + 9
-                    printf("negative compute inv 14\n");
+                    //printf("negative compute inv 14\n");
                     FourStepPartialInverseCore<<<dim3(32, batch_size), 256>>>(
                         device_in,device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 14, mod_count);
@@ -6316,7 +6347,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
 
                 case 15:
                     //6 + 9
-                    printf("negative compute inv 15\n");
+                    //printf("negative compute inv 15\n");
                     FourStepPartialInverseCore<<<dim3(64, batch_size), 256>>>(
                         device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 15, mod_count);
@@ -6329,7 +6360,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 16:
                     //7 + 9
-                    printf("negative compute inv 16\n");
+                    //printf("negative compute inv 16\n");
                     FourStepPartialInverseCore<<<dim3(128, batch_size), 256>>>(
                         device_in, device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8,
                         cfg.mod_inverse, 16, mod_count);
@@ -6342,7 +6373,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 17:
                     //5 + 12
-                    printf("negative compute inv 17\n");
+                    //printf("negative compute inv 17\n");
                     FourStepPartialInverseCore1<<<dim3(8, 32, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 12, 17,
                         mod_count); //9层
@@ -6359,7 +6390,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 18:
                     // 5+ 13
-                    printf("negative compute inv 18\n");
+                    //printf("negative compute inv 18\n");
                     FourStepPartialInverseCore1<<<dim3(16, 32, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 13, 18,
                         mod_count);
@@ -6377,7 +6408,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 19:
                     //5 + 14
-                    printf("negative compute inv 19\n");
+                    //printf("negative compute inv 19\n");
                     FourStepPartialInverseCore1<<<dim3(32, 32, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 14, 19,
                         mod_count);
@@ -6394,7 +6425,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 20:
                     //5 + 15
-                    printf("negative compute inv 20\n");
+                    //printf("negative compute inv 20\n");
                     FourStepPartialInverseCore1<<<dim3(64, 32, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 20,
                         mod_count);
@@ -6411,7 +6442,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 21:
                     //5 + 16
-                    printf("negative compute inv 21\n");
+                    //printf("negative compute inv 21\n");
                     FourStepPartialInverseCore1<<<dim3(64, 64, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 21,
                         mod_count);
@@ -6428,7 +6459,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 22:
                     //7 + 15
-                    printf("negative compute inv 22\n");
+                    //printf("negative compute inv 22\n");
                     FourStepPartialInverseCore1<<<dim3(64, 128, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 15, 22,
                         mod_count);
@@ -6445,7 +6476,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 23:
                     //7 + 16
-                    printf("negative compute inv 23\n");
+                    //printf("negative compute inv 23\n");
                     FourStepPartialInverseCore1<<<dim3(128, 128, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 23,
                         mod_count);
@@ -6461,7 +6492,7 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 24:
-                    printf("negative compute inv 24\n");
+                    //printf("negative compute inv 24\n");
                     FourStepPartialInverseCore1<<<dim3(128, 256, batch_size), 256>>>(
                         device_in, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 16, 24,
                         mod_count);

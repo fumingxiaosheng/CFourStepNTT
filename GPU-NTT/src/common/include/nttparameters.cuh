@@ -13,7 +13,17 @@
 #define UNITY_SIZE1 64
 #define UNITY_SIZE2 64
 
+#define TESTSIZE 25
+
+#define BEFORE_SPEED {cudaEventCreate( &start );cudaEventCreate( &stop ) ;cudaEventRecord( start, 0 ) ;}
+
+#define AFTER_SPEED {cudaEventRecord( stop, 0 ) ;cudaEventSynchronize( stop );}
+
+#define DESTORY_SPEED {cudaEventDestroy( start );cudaEventDestroy( stop );}
+
+
 int bitreverse(int index, int n_power);
+float timer(cudaEvent_t start, cudaEvent_t stop);
 
 
 //__constant__ Root Csitable64[32];//HXW:定义常量内存

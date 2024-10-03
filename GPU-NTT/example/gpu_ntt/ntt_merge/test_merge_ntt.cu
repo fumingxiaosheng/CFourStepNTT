@@ -12,20 +12,20 @@ int BATCH;
 
 int main(int argc, char* argv[])
 {
-    CudaDevice();
+    //CudaDevice();
 
     int device = 0;  // Assuming you are using device 0
     cudaSetDevice(device);
 
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, device);
+    //cudaDeviceProp prop;
+    //cudaGetDeviceProperties(&prop, device);
 
-    std::cout << "Maximum Grid Size: " << prop.maxGridSize[0] << " x " << prop.maxGridSize[1]
-              << " x " << prop.maxGridSize[2] << std::endl;
+    // std::cout << "Maximum Grid Size: " << prop.maxGridSize[0] << " x " << prop.maxGridSize[1]
+    //           << " x " << prop.maxGridSize[2] << std::endl;
 
     if(argc < 3)
     {
-        LOGN = 16;
+        LOGN = 18;
         BATCH = 16;
     }
     else
@@ -43,6 +43,7 @@ int main(int argc, char* argv[])
 #else
 #error "Please define reduction type."
 #endif
+
 
 #ifdef DEFAULT_MODULUS
     NTTParameters parameters(LOGN, modular_reduction_type, ReductionPolynomial::X_N_minus);
@@ -118,7 +119,13 @@ int main(int argc, char* argv[])
                                      .reduction_poly = ReductionPolynomial::X_N_minus,
                                      .zero_padding = false,
                                      .stream = 0};
+
+    cudaEvent_t start, stop;
+    BEFORE_SPEED
     GPU_NTT_Inplace(InOut_Datas, Forward_Omega_Table_Device, test_modulus, cfg_ntt, BATCH, 1);
+    AFTER_SPEED
+    float tot = timer(start,stop);
+    DESTORY_SPEED
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -143,7 +150,7 @@ int main(int argc, char* argv[])
 
         if((i == (BATCH - 1)) && check)
         {
-            cout << "All Correct." << endl;
+            //cout << "All Correct." << endl;
         }
     }
 
@@ -153,5 +160,6 @@ int main(int argc, char* argv[])
     THROW_IF_CUDA_ERROR(cudaFree(Forward_Omega_Table_Device));
     free(Output_Host);
 
+    printf("%f\n",tot);
     return EXIT_SUCCESS;
 }
