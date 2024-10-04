@@ -564,7 +564,8 @@ std::vector<int>  NTTParameters4Step::matrix_dimention() {
             shape = { 32, 256 };
             return shape;
         case 14:
-            shape = { 32, 512 };
+            //shape = { 32, 512 };
+            shape = {64,256};
             return shape;
 		case 15:
             shape = { 64, 512 };

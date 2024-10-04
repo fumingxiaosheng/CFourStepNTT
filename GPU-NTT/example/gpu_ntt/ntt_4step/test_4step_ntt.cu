@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
 
         if(!check)
         {
-            cout << "(in " << i << ". Poly.)" << endl;
+            //cout << "(in " << i << ". Poly.)" << endl;
             break;
         }
 
