@@ -46,6 +46,9 @@ std::vector<Data> NTT_4STEP_CPU::ntt(std::vector<Data>& input)
     std::vector<std::vector<Data>> transposed_matrix2 = transpose_matrix(transposed_matrix);
     std::vector<Data> vector_ = matrix_to_vector(transposed_matrix2);
 
+    // printf("direct return\n");
+    // return vector_;
+
     product(vector_, parameters.W_root_of_unity_table, parameters.logn);
 
     std::vector<std::vector<Data>> matrix3 =

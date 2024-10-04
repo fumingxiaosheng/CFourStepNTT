@@ -526,10 +526,10 @@ __global__ void cyclic_6(Data* polynomial_in, Data* polynomial_out,
     //                (index3 * 3) + divindex] =
     //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
 
-    polynomial_in[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4)];
-    polynomial_in[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 8];
-    polynomial_in[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 32];
-    polynomial_in[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 40];
+    polynomial_out[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4)];
+    polynomial_out[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 8];
+    polynomial_out[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 32];
+    polynomial_out[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[global_index2][idx_y + (global_index1 << 4) + 40];
 }
 
 
@@ -4367,7 +4367,9 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                             Root* n2_root_of_unity_table, Root* W_root_of_unity_table,
                             Modulus* modulus, ntt4step_rns_configuration cfg, int batch_size,
                             int mod_count)
-{
+{   
+    float tot;
+    cudaEvent_t start, stop;
     switch(cfg.ntt_type) //ntt_type指定了是做正向ntt还是逆向ntt
     {
         case FORWARD:
@@ -4436,10 +4438,17 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
 
                     //hxw 6+9
                     //printf("compute 15 new\n");
+                    
+                    //BEFORE_SPEED
                     cyclic_6<<<dim3(32, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
                         mod_count);
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
+
                     FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
                         15, mod_count);
@@ -4491,9 +4500,11 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 18:
                     // 5 + 13
                     ////printf("compute 18\n");
+                    
                     cyclic_5<<<dim3(256, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 13, 65536, 18,
                         mod_count);
+                    
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
 
                     //下面两个kernel完成13层的NTT计算
@@ -4507,12 +4518,19 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
 
 
                     // 6 + 12
+                    // BEFORE_SPEED
                     // cyclic_6<<<dim3(256, batch_size), dim3(32, 8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 12, 13, 65536, 18, mod_count);
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    
                     // FourStepPartialForwardCore1<<<dim3(8, 64, batch_size), dim3(64, 4)>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 12, 6, 2048, 3, 18, mod_count);
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
                     // FourStepPartialForwardCore2<<<dim3(8, 64, batch_size), 256>>>( device_out, n2_root_of_unity_table ,modulus, 12, 18, mod_count);//做9层NTT , W_root_of_unity_table
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    
                     break;
                 case 19:
                     // 5 + 14
@@ -4549,9 +4567,14 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 21:
                     // 6 + 15
                     //printf("compute 21\n");
+                    //BEFORE_SPEED
                     cyclic_6<<<dim3(2048, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 16, 524288, 21,
                         mod_count);
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 64, batch_size), dim3(8, 32)>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 3,
