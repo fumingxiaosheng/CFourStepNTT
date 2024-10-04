@@ -186,12 +186,12 @@ int main(int argc, char* argv[])
     //////////////////////////////////////////////////////////////////////////
     //GPU_Transpose(Input_Datas, Output_Datas, parameters.n1, parameters.n2, parameters.logn, BATCH);//d,d,h,h,h,h Input_Datas是n1*n2维,Output_Datas是n2*n1维度 //在12的第一版中是不需要进行转置的
 
-    cudaEvent_t start, stop;
-    BEFORE_SPEED
+    // cudaEvent_t start, stop;
+    // BEFORE_SPEED
     GPU_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_intt, BATCH, 1);
-    AFTER_SPEED
-    float tot = timer(start,stop);
-    DESTORY_SPEED
+    // AFTER_SPEED
+    // float tot = timer(start,stop);
+    // DESTORY_SPEED
 
     //根据自己定义的划分进行求值
     /*if(parameters.n == (1 << 12)){
@@ -270,6 +270,6 @@ int main(int argc, char* argv[])
     }*/
 
 
-    printf("%f\n",tot);
+    //printf("%f\n",tot);
     return EXIT_SUCCESS;
 }

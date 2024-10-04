@@ -2396,15 +2396,15 @@ __global__ void FourStepPartialForwardCore2(Data* polynomial_in, Root* n2_root_o
 }
 
 
-/*2024-8-8:
-32个128维的NTT
-线程组织形式:dim3(32, batch_size), 64
 
-数量统计:每一个batch,对应了2048个线程，每个线程完成1个修正（乘上W_root）
+/*线程组织形式:<<<dim3(1<<n1,batch),1<<(n2-1)>>>
 
-处理流程:需要完成32个64维的NTT，因此，每一个block对应一个64维的NTT，最终，输出n1*n2的比特翻转的NTT结果*/
-
-//7, 6, 1, 12,
+参数:
+    T: n2-1
+    Loop:n2 - 6
+    small_npower:n2
+    n_power:n
+*/
 __global__ void FourStepPartialForwardCore(Data* polynomial_in, Root* n2_root_of_unity_table,
                                            Root* w_root_of_unity_table, Modulus* modulus,
                                            int small_npower, int T, int LOOP, int n_power,
@@ -2474,7 +2474,14 @@ __global__ void FourStepPartialForwardCore(Data* polynomial_in, Root* n2_root_of
                     n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
     polynomial_in[address + divindex] = sharedmemorys[shrd_address];
     polynomial_in[address + t + divindex] = sharedmemorys[shrd_address + t];
-}
+}/*2024-8-8:
+32个128维的NTT
+线程组织形式:dim3(32, batch_size), 64
+
+数量统计:每一个batch,对应了2048个线程，每个线程完成1个修正（乘上W_root）
+
+处理流程:需要完成32个64维的NTT，因此，每一个block对应一个64维的NTT，最终，输出n1*n2的比特翻转的NTT结果*/
+
 
 __global__ void FourStepPartialForwardCore(Data* polynomial_in, Root* n2_root_of_unity_table,
                                            Root* w_root_of_unity_table, Modulus modulus,
@@ -4384,13 +4391,24 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     //    mod_count); //n2个n1维的NTT
                     // //printf("using cyclic 5\n");
                     //printf("compute 12\n");
+
+                    //BEFORE_SPEED
                     cyclic_5<<<dim3(4, batch_size), dim3(32, 8)>>>(
                        device_in, device_out, n1_root_of_unity_table, modulus, 7, 1024, 12,
                         mod_count); //n2个n1维的NTT
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    BEFORE_SPEED
                     FourStepPartialForwardCore<<<dim3(32, batch_size), 64>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 7, 6, 1,
                         12, mod_count);//n1个n2维的NTT ,device_out为n1*n2维的矩阵
+                    AFTER_SPEED
+                    tot = timer(start,stop);
+                    DESTORY_SPEED
+                    printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 13:
