@@ -4377,7 +4377,7 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
             switch(cfg.n_power)
             {
                 case 12:
-                    //n1=2^5,n2=2^7
+                    //n1=2^5,n2=2^7 d
                     ////printf("hi");
                     // FourStepForwardCoreT1<<<dim3(4, batch_size), dim3(32, 8)>>>(
                     //    device_in, device_out, n1_root_of_unity_table, modulus, 7, 1024, 12,
