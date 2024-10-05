@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
     {
-        LOGN = 18;
+        LOGN = 15;
         BATCH = 16;
     }
     else
@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
 
         if(!check)
         {
-            //cout << "(in " << i << ". Poly.)" << endl;
+            cout << "(in " << i << ". Poly.)" << endl;
             break;
         }
 
