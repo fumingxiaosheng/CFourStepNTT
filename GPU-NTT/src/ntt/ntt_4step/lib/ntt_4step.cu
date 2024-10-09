@@ -117,7 +117,7 @@ __host__ void GPU_Transpose(Data* input, Data* output, const int row, const int 
                             const int n_power, const int batch_size)
 {
     //Transpose_Batch<<<dim3(col >> 4, row >> 4, batch_size), dim3(16, 16)>>>(input, output, row, col, n_power);
-    printf("Transpose_Batch2\n");
+    //printf("Transpose_Batch2\n");
     Transpose_Batch2<<<dim3(row >> 5, col >> 5, batch_size), dim3(32, 4)>>>(input, output, row, col, n_power);
     THROW_IF_CUDA_ERROR(cudaGetLastError());
 }
@@ -442,6 +442,93 @@ index1 =n2  index2 = n2+1 index3 = 1 << (n2+4) ->扩大倍数
         sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
 }*/
 
+
+__global__ void cyclic_6_nmt(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[16][64 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    //int idx_index = idx_x + (idx_y << 5);//在一个block中的线程id
+    //int global_addresss = idx_index + (block_x << 10);//在n中的位置
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 4;
+    int global_index2 = idx_x % 16;
+
+    // Load data from global & store to shared
+    //以4行为单位从全局内存中拿出数据 -> 不存在存储体冲突的版本
+    sharedmemorys[idx_y / 2][idx_x + ((idx_y & 1) << 5)] =
+        polynomial_in[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[idx_y / 2 +4][idx_x + ((idx_y & 1) << 5)] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[idx_y / 2 +8][idx_x + ((idx_y & 1) << 5)] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex];
+    sharedmemorys[idx_y / 2 +12][idx_x + ((idx_y & 1) << 5)] =
+        polynomial_in[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex];
+    __syncthreads();
+
+    int t_ = 5;
+    int t = 1 << t_;
+    int in_shared_address = ((idx_x >> t_) << t_) + idx_x;
+    
+    //32个线程完成一个64维NTT,每个idx_y负责横着的idx_y和idx_y+8行的蝴蝶操作
+    CooleyTukeyUnit_(sharedmemorys[idx_y][in_shared_address],
+                    sharedmemorys[idx_y][in_shared_address + t],
+                    n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+    CooleyTukeyUnit_(sharedmemorys[idx_y + 8][in_shared_address],
+                    sharedmemorys[idx_y + 8][in_shared_address + t],
+                    n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 0; i < 5; i++)
+    {
+        t = t >> 1;
+        t_ -= 1;
+
+        in_shared_address = ((idx_x >> t_) << t_) + idx_x;
+        ;
+
+        CooleyTukeyUnit_(sharedmemorys[idx_y][in_shared_address],
+                        sharedmemorys[idx_y][in_shared_address + t],
+                        n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+        CooleyTukeyUnit_(sharedmemorys[idx_y + 8][in_shared_address],
+                        sharedmemorys[idx_y + 8][in_shared_address + t],
+                        n1_root_of_unity_table[(idx_x >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    
+
+    //按列读取共享内存，按行（16个数据单元）存放到全局内存中
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                divindex] = sharedmemorys[global_index2][global_index1 + (idx_y << 1)]; //index1 =n2  index2 = n2+1 index3 = 1 << (n2+4)
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                index3 + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 16];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                (index3 * 2) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 32];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 4) +
+    //                (index3 * 3) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 1) + 48];
+
+    polynomial_out[((idx_y + (global_index1 << 4)) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[idx_y / 2][idx_x + ((idx_y & 1) << 5)];
+    polynomial_out[((idx_y + (global_index1 << 4) + 8) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[idx_y / 2 +4][idx_x + ((idx_y & 1) << 5)];
+    polynomial_out[((idx_y + (global_index1 << 4) + 32) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[idx_y / 2 +8][idx_x + ((idx_y & 1) << 5)];
+    polynomial_out[((idx_y + (global_index1 << 4) + 40) << index1) + global_index2 + (block_x << 4) + divindex] = sharedmemorys[idx_y / 2 +12][idx_x + ((idx_y & 1) << 5)];
+}
+
+
 /*2024-9-20:
 根据16*64的共享内存特性，完成矩阵转置的操作,注意,该方法无法形成对于全局内存的合并内存访问，只能形成1/2
 线程组织形式为<<<,dim3(32,8)>>>
@@ -699,6 +786,92 @@ __global__ void FourStepForwardCoreT3(Data* polynomial_in, Data* polynomial_out,
     polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 3) +
                    (index3 * 3) + divindex] =
         sharedmemorys[global_index2][global_index1 + (idx_y << 2) + 96];
+}
+
+
+__global__ void cyclic_7_nmt(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[8][128 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    //int idx_index = idx_x + (idx_y << 5);//每个线程在线程块中的编号
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 3;
+    int global_index2 = idx_x % 8;
+
+    //在避免存储体冲突的情况下,进行数据的存取
+    sharedmemorys[idx_y/4][idx_x + 32 * (idx_y &3)] =
+        polynomial_in[(((global_index1 << 3) + idx_y ) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[idx_y/4 + 2][idx_x + 32 * (idx_y &3)] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 32) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[idx_y/4 + 4][idx_x + 32 * (idx_y &3)] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 64) << index1) + global_index2 + (block_x << 3) + divindex];
+    sharedmemorys[idx_y/4 + 6][idx_x + 32 * (idx_y &3)] =
+        polynomial_in[(((global_index1 << 3) + idx_y + 96) << index1) + global_index2 + (block_x << 3) + divindex];
+    __syncthreads();
+
+    int shr_address = idx_x + ((idx_y % 2) << 5);
+    int shr_in = idx_y >> 1;
+
+    int t_ = 6;
+    int t = 1 << t_;
+    int in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+    CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
+                    sharedmemorys[shr_in][in_shared_address + t],
+                    n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+    CooleyTukeyUnit_(sharedmemorys[shr_in + 4][in_shared_address],
+                    sharedmemorys[shr_in + 4][in_shared_address + t],
+                    n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 0; i < 6; i++)
+    {
+        t = t >> 1;
+        t_ -= 1;
+
+        in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+        CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
+                        sharedmemorys[shr_in][in_shared_address + t],
+                        n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+        CooleyTukeyUnit_(sharedmemorys[shr_in + 4][in_shared_address],
+                        sharedmemorys[shr_in + 4][in_shared_address + t],
+                        n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    //转置着输入到全局内存中
+    
+
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 3) +
+    //                divindex] = sharedmemorys[global_index2][global_index1 + (idx_y << 2)];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 3) +
+    //                index3 + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 2) + 32];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 3) +
+    //                (index3 * 2) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 2) + 64];
+    // polynomial_out[global_index2 + (global_index1 << index1) + (idx_y << index2) + (block_x << 3) +
+    //                (index3 * 3) + divindex] =
+    //     sharedmemorys[global_index2][global_index1 + (idx_y << 2) + 96];
+
+    polynomial_out[(((global_index1 << 3) + idx_y ) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[idx_y/4][idx_x + 32 * (idx_y &3)];
+    polynomial_out[(((global_index1 << 3) + idx_y + 32) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[idx_y/4 + 2][idx_x + 32 * (idx_y &3)];
+    polynomial_out[(((global_index1 << 3) + idx_y + 64) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[idx_y/4 + 4][idx_x + 32 * (idx_y &3)];
+    polynomial_out[(((global_index1 << 3) + idx_y + 96) << index1) + global_index2 + (block_x << 3) + divindex] = sharedmemorys[idx_y/4 + 6][idx_x + 32 * (idx_y &3)];
+        
 }
 
 /*2024-9-21:
@@ -1105,6 +1278,70 @@ __global__ void cyclic_8(Data* polynomial_in, Data* polynomial_out,
     polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64];
     polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128];
     polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[global_index2][(global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192];
+}
+
+
+__global__ void cyclic_8_mnt(Data* polynomial_in, Data* polynomial_out,
+                                      Root* n1_root_of_unity_table, Modulus* modulus, int index1,
+                                      int index2, int index3, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y;
+
+    __shared__ Data sharedmemorys[4][256 + 1];
+
+    int q_index = block_y % mod_count;
+    Modulus q_thread = modulus[q_index];
+
+    int divindex = block_y << n_power;
+
+    int global_index1 = idx_x >> 2;
+    int global_index2 = idx_x % 4;
+
+    sharedmemorys[0][idx_x + idx_y * 32] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[1][idx_x + idx_y * 32] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[2][idx_x + idx_y * 32] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128) << index1) + (block_x << 2) + global_index2 + divindex];
+    sharedmemorys[3][idx_x + idx_y * 32] = polynomial_in[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192) << index1) + (block_x << 2) + global_index2 + divindex];
+    __syncthreads();
+
+    int shr_address = idx_x + ((idx_y % 4) << 5);
+    int shr_in = idx_y >> 2;
+
+    int t_ = 7;
+    int t = 1 << t_;
+    int in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+    CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
+                    sharedmemorys[shr_in][in_shared_address + t],
+                    n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+    CooleyTukeyUnit_(sharedmemorys[shr_in + 2][in_shared_address],
+                    sharedmemorys[shr_in + 2][in_shared_address + t],
+                    n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 0; i < 7; i++)
+    {
+        t = t >> 1;
+        t_ -= 1;
+
+        in_shared_address = ((shr_address >> t_) << t_) + shr_address;
+
+        CooleyTukeyUnit_(sharedmemorys[shr_in][in_shared_address],
+                        sharedmemorys[shr_in][in_shared_address + t],
+                        n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+        CooleyTukeyUnit_(sharedmemorys[shr_in + 2][in_shared_address],
+                        sharedmemorys[shr_in + 2][in_shared_address + t],
+                        n1_root_of_unity_table[(shr_address >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3)) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[0][idx_x + idx_y * 32];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 64) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[1][idx_x + idx_y * 32];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 128) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[2][idx_x + idx_y * 32];
+    polynomial_out[(((global_index1 << 2) + ((idx_y >> 2) << 5) + (idx_y & 3) + 192) << index1) + (block_x << 2) + global_index2 + divindex] = sharedmemorys[3][idx_x + idx_y * 32];
 }
 
 /*2024-10-4:
@@ -2610,6 +2847,77 @@ __global__ void FourStepPartialForwardCore(Data* polynomial_in, Root* n2_root_of
                     n2_root_of_unity_table[(local_idx >> t_2)], q_thread);
     polynomial_in[address + divindex] = sharedmemorys[shrd_address];
     polynomial_in[address + t + divindex] = sharedmemorys[shrd_address + t];
+}
+
+
+__global__ void cyclic_5_nmt(Data* polynomial_in, Data* polynomial_out,Root* n1_root_of_unity_table, Modulus* modulus, int index1, int index2, int n_power, int mod_count)
+{
+    int idx_x = threadIdx.x;
+    int idx_y = threadIdx.y;
+    int block_x = blockIdx.x;
+    int block_y = blockIdx.y; //和batch_size相对应
+
+    __shared__ Data sharedmemorys[32][32 + 1]; //每一个block用于填满sharedmemorys
+
+    int q_index = block_y % mod_count; //moduls共用一个
+    Modulus q_thread = modulus[q_index];//q_thread代表的是模数
+
+    //把4096分成4段,每一段对应一个block,(block_x << 10)对应每个半区的开始,idx_x代表一个block中的线程数(256),因此，每一个线程需要load4个数进来
+
+    int divindex = block_y << n_power; //用于区分是第几个batch
+
+    // Load data from global & store to shared
+    
+    //每一个共享内存的一行,对应着在多项式中连续的32个系数
+    sharedmemorys[idx_y][idx_x] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + divindex];
+    sharedmemorys[idx_y + 8][idx_x] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + index2 + divindex];
+    sharedmemorys[idx_y + 16][idx_x] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 2) + divindex];
+    sharedmemorys[idx_y + 24][idx_x] = polynomial_in[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 3) + divindex];
+    __syncthreads();
+
+    int global_index1 = idx_x >> 4; //32以内的数除以16
+    int global_index2 = idx_x % 16;
+
+    int t_ = 4;
+    int t = 1 << t_;
+    int in_shared_address = ((global_index2 >> t_) << t_) + global_index2; //本质上就等于global_index2
+
+    //NTT操作:in_shared_address对应着矩阵sharedmemorys的一列，该列需要完成32个CT操作。in_shared_address的范围为0-16，因此两个idx_x映射到同一个列。因此global_index2对应了哪一列，global_index1对应着该idx_x是处理奇数行还是偶数行（因此行位置为(idx_y << 1) + global_index1，又因为每一列16个线程，因此每个线程做两个CT，再加上16），(global_index2 >> t_代表着做的是第几组CT，又因为n1_root_of_unity_table已经是比特翻转顺序，因此直接索引其下标即可
+    CooleyTukeyUnit_(sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
+                    sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
+                    n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+    CooleyTukeyUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
+                    sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address + t],
+                    n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+    __syncthreads();
+
+    for(int i = 0; i < 4; i++)
+    {
+        t = t >> 1;
+        t_ -= 1;
+
+        in_shared_address = ((global_index2 >> t_) << t_) + global_index2;//二分
+
+        CooleyTukeyUnit_(sharedmemorys[(idx_y << 1) + global_index1][in_shared_address],
+                        sharedmemorys[(idx_y << 1) + global_index1][in_shared_address + t],
+                        n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+        CooleyTukeyUnit_(sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address],
+                        sharedmemorys[(idx_y << 1) + global_index1 + 16][in_shared_address + t],
+                        n1_root_of_unity_table[(global_index2 >> t_)], q_thread);
+        __syncthreads();
+    }
+    __syncthreads();
+
+    //假设polynomial_out中的下标为(a,b),那么写入到polynomial_out中的位置为(block_x*32+a) + b * 32
+    //每个线程负责4个数的写入 //合并内存访问
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + divindex] =
+        sharedmemorys[idx_y][idx_x];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + index2 + divindex] =
+        sharedmemorys[idx_y + 8][idx_x];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 2) + divindex] =
+        sharedmemorys[idx_y + 16][idx_x];
+    polynomial_out[idx_x + (idx_y << index1) + (block_x << 5) + (index2 * 3) + divindex] =
+        sharedmemorys[idx_y + 24][idx_x];
 }
 
 
@@ -4455,9 +4763,11 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     //printf("compute 12\n");
 
                     BEFORE_SPEED
+                    //GPU_Transpose(device_out, device_in, 1 << 5, 1 << 7, 12, batch_size);
                     cyclic_5<<<dim3(4, batch_size), dim3(32, 8)>>>(
                        device_in, device_out, n1_root_of_unity_table, modulus, 7, 1024, 12,
                         mod_count); //n2个n1维的NTT
+                    //GPU_Transpose(device_out, device_in, 1 << 5, 1 << 7, 12, batch_size);
                     AFTER_SPEED
                     tot = timer(start,stop);
                     DESTORY_SPEED
@@ -4476,25 +4786,25 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 13:
                     // 5 + 8
                     //printf("compute 13\n");
-                    //BEFORE_SPEED
+                    BEFORE_SPEED
                     cyclic_5<<<dim3(8, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 8, 2048, 13,
                         mod_count);
-                    // AFTER_SPEED
-                    // tot = timer(start,stop);
-                    // DESTORY_SPEED
-                    // printf("%f\n",tot);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    BEFORE_SPEED
-                    // FourStepPartialForwardCore<<<dim3(32, batch_size), 128>>>(
-                    //     device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2,
-                    //     13, mod_count);
-
-                    cyclic_8_nm<<<dim3(8,batch_size),dim3(32,8)>>>(device_out, device_out,n2_root_of_unity_table,W_root_of_unity_table,modulus,13,mod_count);
                     AFTER_SPEED
                     tot = timer(start,stop);
                     DESTORY_SPEED
                     printf("%f\n",tot);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // BEFORE_SPEED
+                    FourStepPartialForwardCore<<<dim3(32, batch_size), 128>>>(
+                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2,
+                        13, mod_count);
+
+                    //cyclic_8_nm<<<dim3(8,batch_size),dim3(32,8)>>>(device_out, device_out,n2_root_of_unity_table,W_root_of_unity_table,modulus,13,mod_count); //注意这句代码是不用的
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 14:
@@ -4522,14 +4832,15 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
 
                     //6+8
                     BEFORE_SPEED
+                    //GPU_Transpose(device_in, device_out, 1 << 6, 1 << 8, 14, batch_size);
                     cyclic_6<<<dim3(16,batch_size),dim3(32,8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 8, 9, 4096, 14, mod_count);
                     //cyclic_8_nm<<<dim3(16,batch_size),dim3(32,8)>>>(device_out, device_out,n2_root_of_unity_table,W_root_of_unity_table,modulus,14,mod_count);
-                    FourStepPartialForwardCore<<<dim3(64, batch_size), 128>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2, 14, mod_count);
+                    //GPU_Transpose(device_in, device_out, 1 << 6, 1 << 8, 14, batch_size);
                     AFTER_SPEED
                     tot = timer(start,stop);
                     DESTORY_SPEED
                     printf("%f\n",tot);
-                    
+                    FourStepPartialForwardCore<<<dim3(64, batch_size), 128>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2, 14, mod_count);
                     break;
                 case 15:
                     // 6 + 9
@@ -4574,12 +4885,14 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
 
                     //7 + 8
                     BEFORE_SPEED
+                
                     cyclic_7<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 8, 10, 8192, 15, mod_count);
-                    FourStepPartialForwardCore<<<dim3(128, batch_size), 128>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2, 15, mod_count);
+
                     AFTER_SPEED
                     tot = timer(start,stop);
                     DESTORY_SPEED
                     printf("%f\n",tot);
+                    FourStepPartialForwardCore<<<dim3(128, batch_size), 128>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2, 15, mod_count);
                     break;
                 case 16:
                     // 7 + 9
@@ -4588,33 +4901,33 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     //     mod_count);
                     //printf("compute new 16\n");
                     
-                    // BEFORE_SPEED
-                    // cyclic_7<<<dim3(64, batch_size), dim3(32, 8)>>>(
-                    //     device_in, device_out, n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
-                    //     mod_count);
-                    // AFTER_SPEED
-                    // tot = timer(start,stop);
-                    // DESTORY_SPEED
-                    // printf("%f\n",tot);
-                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    // //BEFORE_SPEED
-                    // FourStepPartialForwardCore<<<dim3(128, batch_size), 256>>>(
-                    //     device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
-                    //     16, mod_count);
-                    // // AFTER_SPEED
-                    // // tot = timer(start,stop);
-                    // // DESTORY_SPEED
-                    // // printf("%f\n",tot);
-                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
-
-                    //8+8
                     BEFORE_SPEED
-                    cyclic_8<<<dim3(64,batch_size),dim3(32,8)>>>(device_in,device_out,n1_root_of_unity_table,modulus,8,11,16384,16,mod_count);
-                    FourStepPartialForwardCore<<<dim3(256,batch_size),128>>>(device_out,n2_root_of_unity_table,W_root_of_unity_table,modulus,8,7,2,16,mod_count);
+                    cyclic_7<<<dim3(64, batch_size), dim3(32, 8)>>>(
+                        device_in, device_out, n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
+                        mod_count);
                     AFTER_SPEED
                     tot = timer(start,stop);
                     DESTORY_SPEED
                     printf("%f\n",tot);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    //BEFORE_SPEED
+                    FourStepPartialForwardCore<<<dim3(128, batch_size), 256>>>(
+                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
+                        16, mod_count);
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
+                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    //8+8
+                    // BEFORE_SPEED
+                    // cyclic_8<<<dim3(64,batch_size),dim3(32,8)>>>(device_in,device_out,n1_root_of_unity_table,modulus,8,11,16384,16,mod_count);
+                    // FourStepPartialForwardCore<<<dim3(256,batch_size),128>>>(device_out,n2_root_of_unity_table,W_root_of_unity_table,modulus,8,7,2,16,mod_count);
+                    // AFTER_SPEED
+                    // tot = timer(start,stop);
+                    // DESTORY_SPEED
+                    // printf("%f\n",tot);
                     break;
                 case 17:
                     //2^5 * 2^12
@@ -4692,9 +5005,16 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 19:
                     // 5 + 14
                     //printf("compute 19\n");
+                    BEFORE_SPEED
+                    //GPU_Transpose(device_in, device_out, 1 << 5, 1 << 14, 19, batch_size);
                     cyclic_5<<<dim3(512, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 14, 131072, 19,
                         mod_count);
+                    //GPU_Transpose(device_in, device_out, 1 << 5, 1 << 14, 19, batch_size);
+                    AFTER_SPEED
+                    tot = timer(start,stop);
+                    DESTORY_SPEED
+                    printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
 
 
@@ -4724,14 +5044,16 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 21:
                     // 6 + 15
                     //printf("compute 21\n");
-                    //BEFORE_SPEED
+                    BEFORE_SPEED
+                    //GPU_Transpose(device_in, device_out, 1 << 6, 1 << 15, 21, batch_size);
                     cyclic_6<<<dim3(2048, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 16, 524288, 21,
                         mod_count);
-                    // AFTER_SPEED
-                    // tot = timer(start,stop);
-                    // DESTORY_SPEED
-                    // printf("%f\n",tot);
+                    //GPU_Transpose(device_in, device_out, 1 << 6, 1 << 15, 21, batch_size);
+                    AFTER_SPEED
+                    tot = timer(start,stop);
+                    DESTORY_SPEED
+                    printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 64, batch_size), dim3(8, 32)>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 3,
@@ -4744,9 +5066,16 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 22:
                     // 7 + 15
                     //printf("compute 22\n");
+                    BEFORE_SPEED
+                    //GPU_Transpose(device_in, device_out, 1 << 7, 1 << 15, 22, batch_size);
                     cyclic_7<<<dim3(4096, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 15, 17, 1048576, 22,
                         mod_count);
+                    //GPU_Transpose(device_in, device_out, 1 << 7, 1 << 15, 22, batch_size);
+                    AFTER_SPEED
+                    tot = timer(start,stop);
+                    DESTORY_SPEED
+                    printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(64, 128, batch_size), dim3(8, 32)>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 15, 3,
@@ -4774,9 +5103,16 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 24:
                     // 8 + 16
                     //printf("compute 24 new\n");
+                    BEFORE_SPEED
+                    //GPU_Transpose(device_in, device_out, 1 << 8, 1 << 16, 24, batch_size);
                     cyclic_8<<<dim3(16384, batch_size), dim3(32, 8)>>>(
                         device_in, device_out, n1_root_of_unity_table, modulus, 16, 19, 4194304, 24,
                         mod_count);
+                    //GPU_Transpose(device_in, device_out, 1 << 8, 1 << 16, 24, batch_size);
+                    AFTER_SPEED
+                    tot = timer(start,stop);
+                    DESTORY_SPEED
+                    printf("%f\n",tot);
                     THROW_IF_CUDA_ERROR(cudaGetLastError());
                     FourStepPartialForwardCore1<<<dim3(128, 256, batch_size), dim3(4, 64)>>>(
                         device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 16, 2,
