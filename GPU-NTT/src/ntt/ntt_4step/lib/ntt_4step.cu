@@ -4408,14 +4408,14 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                 case 14:
                     // 5 + 9
                     //printf("compute 14\n");
-                    cyclic_5<<<dim3(16, batch_size), dim3(32, 8)>>>(
-                        device_in, device_out, n1_root_of_unity_table, modulus, 9, 4096, 14,
-                        mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(
-                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
-                        14, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // cyclic_5<<<dim3(16, batch_size), dim3(32, 8)>>>(
+                    //     device_in, device_out, n1_root_of_unity_table, modulus, 9, 4096, 14,
+                    //     mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(
+                    //     device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
+                    //     14, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
                     break;
                 case 15:
                     // 6 + 9
