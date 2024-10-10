@@ -19,9 +19,9 @@ extern __constant__ Root Csitable64[32];
 
 int main(int argc, char* argv[])
 {
-    printf("hxw negative ntt test\n");
+    //printf("hxw negative ntt test\n");
     
-    CudaDevice();
+    //CudaDevice();
 
     //根据传入的参数指定LOGN和BATCH
     if(argc < 3)
@@ -151,8 +151,12 @@ int main(int argc, char* argv[])
                                       .mod_inverse = test_ninverse,
                                       .stream = 0};
 
-    
+    cudaEvent_t start, stop;
+    BEFORE_SPEED
     GPU_NEGATIVE_4STEP_NTT(Output_Datas, Input_Datas, psitable_device1, psitable_device2, W_Table_device, test_modulus, cfg_init, BATCH, 1);
+    AFTER_SPEED
+    float tot = timer(start,stop);
+    DESTORY_SPEED
 
     vector<Data> Output_Host(parameters.n * BATCH);
     cudaMemcpy(Output_Host.data(), Input_Datas, parameters.n * BATCH * sizeof(Data),
@@ -177,9 +181,9 @@ int main(int argc, char* argv[])
 
         if((i == (BATCH - 1)) && check)
         {
-            cout << "origaninal All Correct." << endl;
+            //cout << "origaninal All Correct." << endl;
         }
     }
-
+    printf("%f\n",tot);
     return EXIT_SUCCESS;
 }

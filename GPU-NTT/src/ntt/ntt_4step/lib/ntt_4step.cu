@@ -4442,21 +4442,25 @@ __host__ void GPU_4STEP_NTT(Data* device_in, Data* device_out, Root* n1_root_of_
                     //hxw 6+9
                     //printf("compute 15 new\n");
                     
-                    //BEFORE_SPEED
-                    cyclic_6<<<dim3(32, batch_size), dim3(32, 8)>>>(
-                        device_in, device_out, n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
-                        mod_count);
-                    // AFTER_SPEED
-                    // tot = timer(start,stop);
-                    // DESTORY_SPEED
-                    // printf("%f\n",tot);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // //BEFORE_SPEED
+                    // cyclic_6<<<dim3(32, batch_size), dim3(32, 8)>>>(
+                    //     device_in, device_out, n1_root_of_unity_table, modulus, 9, 10, 8192, 15,
+                    //     mod_count);
+                    // // AFTER_SPEED
+                    // // tot = timer(start,stop);
+                    // // DESTORY_SPEED
+                    // // printf("%f\n",tot);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
-                    FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(
-                        device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
-                        15, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(
+                    //     device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 9, 8, 3,
+                    //     15, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+
+                    cyclic_7<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, n1_root_of_unity_table, modulus, 8, 10, 8192, 15, mod_count);
+                    FourStepPartialForwardCore<<<dim3(128, batch_size), 128>>>(device_out, n2_root_of_unity_table, W_root_of_unity_table, modulus, 8, 7, 2, 15, mod_count);
                     break;
+
                 case 16:
                     // 7 + 9
                     // FourStepForwardCoreT3<<<dim3(64, batch_size), dim3(32, 8)>>>(
@@ -6214,10 +6218,14 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     break;
                 case 14:
                     //printf("compute 14\n");
-                    negative_5<<<dim3(16, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 4096, 14, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 14,mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // negative_5<<<dim3(16, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 4096, 14, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore<<<dim3(32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 14,mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // break;
+                    //6 + 8
+                    negative_6<<<dim3(16,batch_size),dim3(32,8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 8, 9, 4096, 14, mod_count);
+                    FourStepPartialForwardCore<<<dim3(64, batch_size), 128>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 8, 7, 2, 14, mod_count);
                     break;
 
                 case 15:
@@ -6228,24 +6236,41 @@ __host__ void GPU_NEGATIVE_4STEP_NTT(Data* device_in, Data* device_out, Root* ne
                     // cyclic_10<<<dim3(32,batch_size), dim3(32, 8)>>>(device_out,device_out,negative_W_root_of_unity_table,n32_root_of_unity_table,n32_W_root_of_unity_table,modulus,15);
                     // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
-                    negative_6<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 10, 8192, 15, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
-                    FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 15, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // negative_6<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 10, 8192, 15, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore<<<dim3(64, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 15, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // break;
+                    
+                    //7 + 8
+                    negative_7<<<dim3(32, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 8, 10, 8192, 15, mod_count);
+                    FourStepPartialForwardCore<<<dim3(128, batch_size), 128>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 8, 7, 2, 15, mod_count);
                     break;
-
+                case 16:
+                    negative_7<<<dim3(64, batch_size), dim3(32, 8)>>>(
+                        device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 11, 16384, 16,
+                        mod_count);
+                    FourStepPartialForwardCore<<<dim3(128, batch_size), 256>>>(
+                        device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3,
+                        16, mod_count);
+                    break;
                 case 17:
                     //5 + 12
                     //printf("compute 17\n");
-                    negative_5<<<dim3(128, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 12, 32768, 17,mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // negative_5<<<dim3(128, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 12, 32768, 17,mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
 
-                    FourStepPartialForwardCore1<<<dim3(8, 32, batch_size), dim3(64, 4)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table,modulus, 12, 6,2048, 3, 17, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());//3
-                    FourStepPartialForwardCore2<<<dim3(8, 32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, modulus, 12, 17, mod_count);
-                    THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // FourStepPartialForwardCore1<<<dim3(8, 32, batch_size), dim3(64, 4)>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table,modulus, 12, 6,2048, 3, 17, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());//3
+                    // FourStepPartialForwardCore2<<<dim3(8, 32, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, modulus, 12, 17, mod_count);
+                    // THROW_IF_CUDA_ERROR(cudaGetLastError());
+                    // break;
+
+                    //8+9
+                    negative_8<<<dim3(128, batch_size), dim3(32, 8)>>>(device_in, device_out, negative_2n1_root_of_unity_table, modulus, 9, 12, 32768, 17, mod_count);//device_in:n2*n1维 device_out:n1*n2维
+                    FourStepPartialForwardCore<<<dim3(256, batch_size), 256>>>(device_out, negative_n2_root_of_unity_table, negative_W_root_of_unity_table, modulus, 9, 8, 3, 17, mod_count);
+        
                     break;
-
                 case 18:
                     // 5 + 13
                     //printf("compute 18\n");
